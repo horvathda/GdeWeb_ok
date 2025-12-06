@@ -1,0 +1,256 @@
+﻿@using GdeWeb.Components.Layout
+@using GdeWeb.Interfaces
+@using GdeWebModels
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@using MudBlazor
+@using SkiaSharp
+@using ZXing.Common
+@using ZXing.SkiaSharp
+
+@inject IJSRuntime jsRuntime
+@inject IDialogService dialogService
+@inject ISnackbarService snackbarService
+@inject IConfiguration configuration
+@inject HttpClient httpClient
+
+<style>
+    .mud-dialog .mud-dialog-content {
+        overflow: hidden !important;
+        text-align: center;
+    }
+
+    .mud-dialog .mud-dialog-actions {
+        justify-content: center;
+    }
+
+    .mud-dialog .dialogbutton {
+        margin-top: 8px;
+        margin-left: 4px;
+        margin-right: 4px;
+    }
+
+    .store-button .mud-button {
+        padding: 0px;
+        border-radius: 12px;
+     }
+</style>
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer>
+            @if (!dialogLoaded)
+            {
+                <MudGrid Spacing="0">
+
+                    @if (showUpdateAvailable)
+                    {
+                        <MudItem xs="12" sm="12" md="12" lg="12" xl="12" xxl="12" Style="align-content: center; text-align: center;">
+
+                            @if (isUpdateAvailable)
+                            {
+                                <p style="color: red; font-weight: bold;">Frissítés érhető el!</p>
+                            }
+                            else
+                            {
+                                <p style="color: green;">A program naprakész.</p>
+                            }
+
+                        </MudItem>
+                    }
+
+                    <MudItem xs="12" sm="12" md="12" lg="12" xl="12" xxl="12" Style="align-content: center; text-align: center;">
+
+                        <img src="@AndroidQRCode" alt="QR Code" style="width: 100%; max-width: 240px;" />
+
+                    </MudItem>
+
+                    <MudItem xs="12" sm="12" md="12" lg="12" xl="12" xxl="12" Style="align-content: center; text-align: center;" Class="store-button">
+
+                        <MudButton Variant="Variant.Filled" OnClick="@(() => DownloadUpdate(MainLayout.AndroidApplicationUrl))" >
+                            <MudImage Src="img/google_play.png" Alt="Google Play" Elevation="25" Class="rounded-lg" Width="200" Height="60" />
+                        </MudButton>
+
+                    </MudItem>
+
+                    <MudItem xs="12" sm="12" md="12" lg="12" xl="12" xxl="12" Style="align-content: center; text-align: center; margin-top: 12px;" Class="store-button">
+
+                        <MudButton Variant="Variant.Filled">
+                            <MudImage Src="img/app_store.png" Alt="Google Play" Elevation="25" Class="rounded-lg" Width="200" Height="60" />
+                        </MudButton>
+
+                    </MudItem>
+
+                </MudGrid>
+            }
+            else
+            {
+                <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+            }
+
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="MudBlazor.Color.Primary" Variant="Variant.Filled" OnClick="Submit" Class="card-button" Style="width: 140px;">Mégsem</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public MainLayout MainLayout { get; set; } = default!;
+
+    [CascadingParameter]
+    public IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public bool isUpdateAvailable { get; set; } = default!;
+
+    [Parameter]
+    public bool showUpdateAvailable { get; set; } = default!;
+
+    private string AndroidQRCode { get; set; } = default!;
+
+
+    public bool dialogLoaded = false;
+
+
+    /// <summary>
+    /// PAGE LOAD
+    /// </summary>
+    #region PAGE LOAD
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadData();
+
+            dialogLoaded = false;
+
+            StateHasChanged();
+        }
+    }
+    #endregion
+
+
+    /// <summary>
+    /// REFRESH METHODES
+    /// </summary>
+    #region REFRESH METHODES
+    private async Task LoadData()
+    {
+        await Task.Delay(10);
+
+
+
+        AndroidQRCode = await QRCodeGenerate(MainLayout.AndroidApplicationUrl, "Android");
+
+        StateHasChanged();
+    }
+    #endregion
+
+
+    /// <summary>
+    /// BUTTON METHODES
+    /// </summary>
+    #region BUTTON METHODES
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    public async Task Submit()
+    {
+        await Task.Delay(10);
+        MudDialog.Close(DialogResult.Ok<bool>(true));
+    }
+
+    private async Task<String> QRCodeGenerate(string link, string name)
+    {
+        try
+        {
+            await Task.Delay(1);
+
+            String QRCodeGenerateImage = "";
+
+            if (!string.IsNullOrEmpty(link) && !string.IsNullOrEmpty(name))
+            {
+                var barcodeWriter = new ZXing.SkiaSharp.BarcodeWriter
+                    {
+                        Format = ZXing.BarcodeFormat.QR_CODE,
+                        Options = new EncodingOptions
+                        {
+                            Height = 300,
+                            Width = 300,
+                            Margin = 1
+                        }
+                    };
+
+                // Generate QR code bitmap
+                using var qrCodeBitmap = barcodeWriter.Write(link);
+
+                // Create a new image with extra space for the text
+                int textHeight = 24; // Space for the DeviceName text
+                int totalHeight = qrCodeBitmap.Height + textHeight;
+                using var finalBitmap = new SKBitmap(qrCodeBitmap.Width, totalHeight);
+                using var canvas = new SKCanvas(finalBitmap);
+
+                // Set the background to white
+                canvas.Clear(SKColors.White);
+
+                // 1) Festék csak a színhez/árnyaláshoz
+                using var paint = new SKPaint { IsAntialias = true, Color = SKColors.Black };
+
+                // 2) Betű (méret, család) SKFont-tal
+                using var font = new SKFont { Size = 20f, Typeface = SKTypeface.FromFamilyName("Inter") };
+
+                // 3) Igazítás az új overloadban paraméter
+                var textAlign = SKTextAlign.Center;
+
+                // 4) Pozicionálás (x középre, y a baseline!)
+                float x = qrCodeBitmap.Width / 2f;
+                float y = (textHeight / 2f) + (textHeight / 3f);
+
+                // 5) Rajzolás az új API-val
+                canvas.DrawText(name, x, y, textAlign, font, paint);
+
+                // Draw the QR code on the canvas
+                canvas.DrawBitmap(qrCodeBitmap, 0, textHeight);
+
+                // Save or use finalBitmap, which now contains the QR code and the DeviceName text
+                using var stream = new MemoryStream();
+                finalBitmap.Encode(stream, SKEncodedImageFormat.Png, 300);
+
+                byte[] imageData = stream.ToArray();
+
+                QRCodeGenerateImage = "data:image/png;base64," + Convert.ToBase64String(stream.ToArray());
+
+                StateHasChanged();
+
+                return QRCodeGenerateImage;
+            }
+
+            return String.Empty;
+        }
+        catch (Exception ex)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt a betöltés során: {ex.Message.ToString()}", MainLayout.pageWidth);
+
+            return String.Empty;
+        }
+    }
+
+
+    private async Task DownloadUpdate(string fileUrl)
+    {
+        try
+        {
+            // Letöltés link megjelenítése
+            await jsRuntime.InvokeVoidAsync("open", fileUrl, "_blank");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Hiba a fájl letöltésekor: " + ex.Message);
+        }
+    }
+    #endregion
+}

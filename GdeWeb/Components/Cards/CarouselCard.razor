@@ -1,0 +1,76 @@
+﻿@using MudBlazor
+@using GdeWeb.Components.Layout
+
+<style>
+    .hero-carousel .mud-icon-button {
+        background: none;
+        backdrop-filter: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.8) !important;
+    }
+</style>
+
+<MudCarousel Class="hero-carousel"
+             ShowArrows="true"
+             ShowBullets="true"
+             AutoCycle="true"
+             AutoCycleTime="TimeSpan.FromSeconds(500)"
+             EnableSwipeGesture="true" 
+             PreviousIcon="@Icons.Material.Filled.ChevronLeft"
+             NextIcon="@Icons.Material.Filled.ChevronRight"
+             TData="HeroSlide">
+
+    <ChildContent>
+        @foreach (var s in Slides)
+        {
+            <MudCarouselItem>
+                <figure class="slide" style="background-image:url('@s.CarouselImageUrl');">
+                    <figcaption class="caption">
+                        @if (!string.IsNullOrWhiteSpace(s.Badge))
+                        {
+                            <MudChip T="string" Variant="Variant.Outlined" Class="chip">@s.Badge</MudChip>
+                        }
+
+                        <MudText Typo="Typo.h3" Class="title">@s.CarouselTitle</MudText>
+
+                        @if (!string.IsNullOrWhiteSpace(s.CarouselSubtitle))
+                        {
+                            <MudText Typo="Typo.subtitle1" Class="subtitle">@s.CarouselSubtitle</MudText>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(s.Link))
+                        {
+                            <MudButton Color="Color.Primary"
+                                       Variant="Variant.Filled"
+                                       Class="cta"
+                                       EndIcon="@Icons.Material.Filled.ArrowForward"
+                                       OnClick="@(() => MainLayout.GoTo(@s.Link, true))">
+                                megnézem
+                            </MudButton>
+                        }
+                    </figcaption>
+                </figure>
+            </MudCarouselItem>
+        }
+    </ChildContent>
+</MudCarousel>
+
+@code {
+    [CascadingParameter]
+    public MainLayout MainLayout { get; set; } = default!;
+
+    [Parameter] public List<HeroSlide> Slides { get; set; } = new();
+
+    public class HeroSlide
+    {
+        public string Badge { get; set; } = default!;
+        public string Link { get; set; } = default!;
+
+        public string CarouselImageUrl { get; set; } = default!;
+        public string CarouselTitle { get; set; } = default!;
+        public string CarouselSubtitle { get; set; } = default!;
+
+        public string CardDescription { get; set; } = default!;
+        public string CardIcon { get; set; } = default!;
+    }
+}

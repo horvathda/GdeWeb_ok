@@ -1,0 +1,374 @@
+﻿@page "/quiz"
+@attribute [Authorize]
+
+@using GdeWeb.Components.Cards
+@using GdeWeb.Components.Layout
+@using GdeWeb.Dialogs
+@using GdeWeb.Interfaces
+@using GdeWebModels
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.WebUtilities
+
+@inject IUserService userService
+@inject IBadgeService badgeService
+@inject IDialogService dialogService
+@inject ITrainingService trainingService
+@inject ISnackbarService snackbarService
+@inject NavigationManager navigationManager
+
+<PageTitle>GDE Edu AI</PageTitle>
+
+<style>
+    .mud-card-content {
+        padding: 12px;
+    }
+
+    .card-max {
+        width : calc(100vw - 20px);
+    }
+
+    .horisontal-list {
+        /* List */
+        display: flex;
+        flex-wrap: wrap; /* ez teszi lehetővé a sorba rendezést és a törést */
+        gap: 16px; /* ha akarsz távolságot az elemek között */
+        justify-content: center; /* ez teszi középre vízszintesen */
+        align-content: flex-start; /* felülre igazít */
+        max-width: 520px;
+    }
+</style>
+
+<div class="main-page">
+    @if (!PageLoading)
+    {
+        <BlazorAnimate.Animate Animation="Animations.ZoomIn" Delay="TimeSpan.FromSeconds(MainLayout.animationDelay)" Duration="TimeSpan.FromSeconds(MainLayout.animationDuration)" style="width: 100%; height:100%;">
+
+            <MudGrid Justify="Justify.SpaceEvenly" Spacing="0" Class="h-100">
+
+                <MudItem xs="12" sm="12" md="6" lg="6" Style="align-content: center; justify-items: center; padding:12px;">
+
+                    <BlazorAnimate.Animate Animation="Animations.SlideDown"
+                                           Delay="@TimeSpan.FromSeconds(MainLayout.animationDelay * 2)"
+                                           Duration="@TimeSpan.FromSeconds(MainLayout.animationDuration)">
+
+@*                         <QuizCard Items="Quizzes"
+                                  Course="Course"
+                                  ShuffleQuestions="true"
+                                  ShuffleOptions="true"
+                                  OnRequestDailyRefresh="RefreshDailyQuizzes"
+                                  OnFinish="HandleFinish" /> *@
+
+                        <div class="card" style="padding:20px;border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,.08);gap:12px;width:100%;align-items: center;">
+                            @if (!string.IsNullOrEmpty(Course.CourseTitle))
+                            {
+                                <div style="font-weight:800;font-size:22px;">@Course.CourseTitle</div>
+                                <div style="font-weight:600;font-size:22px;">Kurzus kvíz – felkészültél?</div>
+                            }
+                            else
+                            {
+                                <div style="font-weight:600;font-size:22px;">Napi kvíz – felkészültél?</div>
+                            }
+
+                            <div style="opacity:.8;">Kérdések száma: <strong>@(Quizzes?.Count ?? 0)</strong></div>
+
+                            <div style="display:flex;gap:8px;">
+                                <MudButton Color="Color.Success"
+                                           Variant="Variant.Filled"
+                                           OnClick="ShowQuizDialog">
+                                    Kezdjük!
+                                </MudButton>
+                            </div>
+
+                            <div class="quiz-anim" style="width:100%;height:160px;display:flex;align-items:center;justify-content:center;gap:16px;">
+                                <LottieCard Path="/lotties/question_sir.json" Width="160" Height="160" Autoplay="true" Loop="true" Speed="1.0" />
+                                <LottieCard Path="/lotties/question_lady.json" Width="160" Height="160" Autoplay="true" Loop="true" Speed="1.0" />
+                            </div>
+                        </div>
+
+                        @* ShuffleQuestions : a kvíz kérdéseinek sorrendje minden indításkor összekeveredik, tehát nem mindig ugyanabban a sorrendben jelennek meg a kérdések (ha false, akkor mindig ugyanabban a sorrendben jelennek meg a kérdések) *@
+                        @* ShuffleOptions : egy adott kérdés válaszopciói (A, B, C, D) minden megjelenítéskor összekeverednek (ha false, akkor a válaszok mindig úgy jelennek meg, ahogyan az adatbázisban / listában szerepelnek) *@
+                        @* DailyQuiz : Napi küldetés (ha false, akkor kurzus kvíz *@
+
+                    </BlazorAnimate.Animate>
+
+                </MudItem>
+
+                <MudItem xs="12" sm="12" md="6" lg="6" Style="align-content: center; justify-items: center; padding:12px;">
+
+                    <div class="horisontal-list">
+                        @if (Badges is not null && Badges.Any())
+                        {
+                            @for (int i = 0; i < Badges.Count; i++)
+                            {
+                                var badge = Badges[i];
+
+                                @if (MainLayout.isMobile)
+                                {
+                                    <BadgeCard Badge="@badge" />
+                                }
+                                else
+                                {
+                                    <BlazorAnimate.Animate Animation="Animations.FlipRight" Delay="@TimeSpan.FromSeconds(MainLayout.animationDelay * (i + 1))" Duration="@TimeSpan.FromSeconds(MainLayout.animationDuration)">
+
+                                        <BadgeCard Badge="@badge" />
+
+                                    </BlazorAnimate.Animate>
+                                }
+                            }
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                                Nincs megjeleníthető jelvény.
+                            </MudAlert>
+                        }
+                    </div>
+                    
+                </MudItem>
+
+            </MudGrid>
+
+        </BlazorAnimate.Animate>
+    }
+    else
+    {
+        <!-- LOADING -->
+        <div class="loading-center">
+            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+        </div>
+    }
+
+</div>
+
+@code {
+    [CascadingParameter]
+    public MainLayout MainLayout { get; set; } = default!;
+
+    [Parameter, SupplyParameterFromQuery(Name = "cid")]
+    public int? Cid { get; set; }
+    private int? _lastProcessedCid;
+
+    // LOADING PARAMETERS
+    private bool PageLoading = true; // true
+
+    // BADGE LIST
+    private List<UserBadgeModel> Badges { get; set; }
+
+    private List<QuizModel> Quizzes { get; set; }
+
+    private List<QuizModel> _allQuizzes = new(); // teljes készlet a napi sorsoláshoz
+
+    private CourseModel Course { get; set; } = new CourseModel();
+
+    /// <summary>
+    /// PAGE LOAD
+    /// </summary>
+    #region PAGE LOAD
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Idempotencia – csak akkor töltsünk, ha változott a cid
+        if (_lastProcessedCid == Cid)
+            return;
+
+        PageLoading = true;
+
+        try
+        {
+            // Jelvények + kurzus/quizek párhuzamosan is mehetnek
+            var badgesTask = badgeService.GetBadgeByUser(MainLayout.loggedUser.UserData.Badges);
+            var dataTask = LoadData();
+
+            await Task.WhenAll(badgesTask, dataTask);
+
+            Badges = await badgesTask;      // itt már kész
+            _lastProcessedCid = Cid;        // megjegyezzük az állapotot
+        }
+        catch (Exception ex)
+        {
+            snackbarService.ShowSnackbar(Severity.Error,
+                $"Hiba történt a betöltés során: {ex.Message}", MainLayout.pageWidth);
+        }
+        finally
+        {
+            PageLoading = false;
+        }
+    }
+    #endregion
+
+    private async Task LoadData()
+    {
+        Cid = Cid.HasValue ? Cid.Value : 0;
+        Course = new CourseModel();
+
+        if (Cid == 0)
+        {
+            var quizList = await trainingService.GetCourseList();
+            if (quizList.Result.Success)
+            {
+                var allQuizItems =
+                    quizList.CourseList
+                        .Where(c => c.CourseAiResponse?.quiz != null)
+                        .SelectMany(c => c.CourseAiResponse.quiz
+                            .Select(q => new { CourseId = c.CourseId, Quiz = q }))
+                        .ToList();
+
+                _allQuizzes = allQuizItems.Select((item, index) =>
+                {
+                    var answers = item.Quiz.answers;
+
+                    // mindig legyen 4 elem (ha kevesebb, kitöltjük üres stringgel)
+                    string GetAnswer(int i) => i < answers.Count ? answers[i].text : "";
+
+                    return new QuizModel
+                    {
+                        QuizId = index + 1, // vagy DB-ből
+                        CourseId = item.CourseId,
+                        QuizQuestion = item.Quiz.question,
+
+                        QuizAnswer1 = GetAnswer(0),
+                        QuizAnswer2 = GetAnswer(1),
+                        QuizAnswer3 = GetAnswer(2),
+                        QuizAnswer4 = GetAnswer(3),
+
+                        QuizSuccess = answers.FirstOrDefault(a => a.correct)?.text ?? ""
+                    };
+                }).ToList();
+
+                await RefreshDailyQuizzes();
+            }
+            else
+            {
+                snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt a betöltés során: {quizList.Result.ErrorMessage.ToString()}", MainLayout.pageWidth);
+            }
+        }
+        else
+        {
+            CourseModel model = new CourseModel() { CourseId = Cid.HasValue ? Cid.Value : 0 };
+            var quizList = await trainingService.GetCourseQuizzes(model);
+            if (quizList.Result.Success)
+            {
+                Quizzes = quizList.QuizList.ToList();
+            }
+            else
+            {
+                snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt a betöltés során: {quizList.Result.ErrorMessage.ToString()}", MainLayout.pageWidth);
+            }
+
+            Course = await trainingService.GetCourse(model);
+            if (!Course.Result.Success)
+            {
+                snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt a betöltés során: {Course.Result.ErrorMessage.ToString()}", MainLayout.pageWidth);
+            }
+        }
+    }
+
+    private Task RefreshDailyQuizzes()
+    {
+        if (_allQuizzes is null || _allQuizzes.Count == 0)
+        {
+            Quizzes = new();
+        }
+        else
+        {
+            var count = Math.Min(10, _allQuizzes.Count);  // hibatűrés (pl. ha kevesebb, mint 10 kérdés van)
+            Quizzes = _allQuizzes
+                .OrderBy(_ => Guid.NewGuid())
+                .Take(count)
+                .ToList();
+        }
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task HandleFinish(UserQuizModel q)
+    {
+        // 1) Kvíz mentése (add)
+        q.ModificationDate = DateTime.Now;
+        MainLayout.loggedUser.UserData.Quizzes.Add(q);
+        StateHasChanged();
+
+        // 2) Jelvények kiértékelése és felírása a UserData.Badges-be
+        // (Szükség lesz az összes kurzus azonosítójára az "Összes kurzus teljesítve" jelvényhez.)
+        // Itt kérd le a kurzusokat a saját szolgáltatásodból:
+        var allCourses = await trainingService.GetCourseList(); // IList<CourseModel>
+        var allCourseIds = allCourses.CourseList.Select(c => c.CourseId).ToList();
+
+        var newlyEarned = await badgeService.EvaluateAndPersistAsync(MainLayout.loggedUser.UserData, allCourseIds);
+
+        // 3) Régi kvízek törlése (50 napnál régebbiek)
+        var limit = DateTime.Now.AddDays(-50);
+
+        MainLayout.loggedUser.UserData.Quizzes =
+            MainLayout.loggedUser.UserData.Quizzes
+                .Where(q => q.ModificationDate >= limit)
+                .ToList();
+
+        // 4) Mentés
+        ResultModel resultModel = await userService.SetUserData(MainLayout.loggedUser);
+        if (!resultModel.Success)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, resultModel.ErrorMessage);
+        }
+        else
+        {
+            // Visszajelzés(ek)
+            if (newlyEarned.Any())
+            {
+                var earnedNames = string.Join(", ", newlyEarned.Select(b => b.Name));
+                snackbarService.ShowSnackbar(Severity.Success, $"Gratulálunk! Új jelvény(ek): {earnedNames}");
+            }
+        }
+
+        Badges = await badgeService.GetBadgeByUser(MainLayout.loggedUser.UserData.Badges);
+
+        StateHasChanged();
+    }
+
+    private async Task<List<QuizModel>> GetDailyQuizzesForDialog()
+    {
+        await RefreshDailyQuizzes();
+        return Quizzes;
+    }
+
+    public async Task ShowQuizDialog()
+    {
+        if (Quizzes == null || !Quizzes.Any())
+        {
+            snackbarService.ShowSnackbar(Severity.Info, "Jelenleg nincs kvíz kérdés.");
+            return;
+        }
+
+        var options = new DialogOptions
+        {
+            NoHeader = true,
+            MaxWidth = MaxWidth.ExtraExtraLarge,
+            CloseOnEscapeKey = true,
+            CloseButton = false,
+            FullScreen = true
+        };
+
+        var parameters = new DialogParameters
+        {
+            ["Items"] = Quizzes,
+            ["Course"] = Course,
+            ["ShuffleQuestions"] = true,
+            ["ShuffleOptions"] = true,
+            // napi kvízhez: a dialog ezt hívja ResetAll esetén, ha nincs CourseTitle
+            ["DailyRefreshCallback"] = (Func<Task<List<QuizModel>>>)GetDailyQuizzesForDialog
+        };
+
+        var dialogRef = await dialogService.ShowAsync<QuizDialog>("Kvíz", parameters, options);
+        var result = await dialogRef.Result;
+
+        if (result != null && !result.Canceled && result.Data is UserQuizModel quizResult)
+        {
+            await HandleFinish(quizResult);
+        }
+    }
+}

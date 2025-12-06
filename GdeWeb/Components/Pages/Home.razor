@@ -1,0 +1,143 @@
+﻿@page "/"
+
+@using GdeWeb.Components.Cards
+@using GdeWeb.Components.Layout
+@using GdeWeb.Interfaces
+@using GdeWebModels
+
+@inject ISnackbarService snackbarService
+@inject IMessageService messageService
+
+<PageTitle>GDE Edu AI</PageTitle>
+
+<div class="main-page">
+    @if (!PageLoading)
+    {
+        <section class="main_blue_bg">
+            <CarouselCard Slides="@Functions" />
+        </section>
+
+        <BlazorAnimate.Animate Animation="Animations.ZoomIn" Delay="TimeSpan.FromSeconds(MainLayout.animationDelay)" Duration="TimeSpan.FromSeconds(MainLayout.animationDuration)">
+
+            <div class="container">
+
+                <BlazorAnimate.Animate Animation="Animations.SlideDown" Delay="@TimeSpan.FromSeconds(MainLayout.animationDelay * 2)" Duration="@TimeSpan.FromSeconds(MainLayout.animationDuration)">
+
+                    <MudText Typo="Typo.h4" Class="font-bold text-center mt-3 mb-3">
+                        Tanulj Mesterséges Intelligenciával gyorsan és játékosan
+                    </MudText>
+
+                </BlazorAnimate.Animate>
+
+                <div class="flip-container">
+
+                    @for (int i = 0; i < Functions.Count; i++)
+                    {
+                        var function = Functions[i];
+
+                        <BlazorAnimate.Animate Animation="Animations.SlideUp"
+                                               Delay="@TimeSpan.FromSeconds(MainLayout.animationDelay * (i + 1))"
+                                               Duration="@TimeSpan.FromSeconds(MainLayout.animationDuration)">
+
+                            <FlipCard Title="@function.Badge"
+                                      Tag="hasznos"
+                                      Description="@function.CardDescription"
+                                      Link="@function.Link"
+                                      Icon="@function.CardIcon"
+                                      CheckLogged="true"
+                                      FrontColor="var(--mud-palette-primary);" />
+
+                        </BlazorAnimate.Animate>
+                    }
+                </div>
+
+            </div>
+
+        </BlazorAnimate.Animate>
+
+    }
+    else
+    {
+        <!-- LOADING -->
+        <div class="loading-center">
+            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+        </div>
+    }
+
+</div>
+
+@code {
+    [CascadingParameter]
+    public MainLayout MainLayout { get; set; } = default!;
+
+    // LOADING PARAMETERS
+    private bool PageLoading = true; // true
+
+    // CATEGORY LIST
+    private List<CarouselCard.HeroSlide> Functions = new()
+    {
+        new()
+        {
+            Badge    = "Kvíz",
+            Link  = "/quiz",
+
+            CarouselImageUrl = "/img/carousel_1.png",
+            CarouselTitle    = "Tudásfelmérés játékosan",
+            CarouselSubtitle = "Mérd fel tudásodat egyszerű, interaktív kérdésekkel – gyors visszajelzés, azonnali eredmények.",
+
+            CardDescription = "Teszteld a tudásod játékosan",
+            CardIcon = @Icons.Material.Filled.People
+        },
+        new()
+        {
+            Badge    = "Kurzusok",
+            Link  = "/course",
+
+            CarouselImageUrl = "/img/carousel_2.png",
+            CarouselTitle    = "Tanulj hatékonyan",
+            CarouselSubtitle = "Prémium tananyagok, hogy a legmagasabb szintű tudással vértezd fel magad.",
+
+            CardDescription = "Fejlődj lépésről lépésre",
+            CardIcon = @Icons.Material.Filled.Leaderboard
+        },
+        new()
+        {
+            Badge    = "Chat",
+            Link  = "/chat",
+
+            CarouselImageUrl = "/img/carousel_3.png",
+            CarouselTitle    = "Kérdezz, beszélgess, tanulj",
+            CarouselSubtitle = "Beszélj az AI-al, hogy választ kapj minden kérdésedre.",
+
+            CardDescription = "Kérdezz bármit, tanulj azonnal",
+            CardIcon = @Icons.Material.Filled.SmartToy
+        }
+    };
+
+    /// <summary>
+    /// PAGE LOAD
+    /// </summary>
+    #region PAGE LOAD
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            PageLoading = false;
+
+            // ResultModel resut = await messageService.AddContactMail(new EmailModel()
+            // {
+            //     ToEmail = "jakab.d@gmail.com",
+            //     Name = "Jakab Dávid",
+            //     Phone = "06703496466",
+            //     FromEmail = "jakab.d@gmail.com",
+            //     Message = "Látogató a GDE Edu AI oldalon.",
+            //     Subject = "GDE Edu AI látogató",
+            //     CreatingDate = DateTime.Now
+            // });
+
+            StateHasChanged();
+        }
+        await base.OnAfterRenderAsync(firstRender);
+    }
+    #endregion
+}

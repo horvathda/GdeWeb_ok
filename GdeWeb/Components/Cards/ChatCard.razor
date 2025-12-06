@@ -1,0 +1,574 @@
+﻿@using GdeWeb.Components.Layout
+@using GdeWeb.Dialogs
+@using GdeWeb.Utilities
+@using GdeWeb.Interfaces
+@using GdeWebModels
+@using Microsoft.Extensions.Configuration
+@using Newtonsoft.Json
+@using System.Text
+@using System.Text.RegularExpressions
+
+@inject IDialogService dialogService
+@inject ITrainingService trainingService
+@inject ISnackbarService snackbarService
+@inject IConfiguration configuration
+@inject HttpClient httpClient
+@inject IJSRuntime JSRuntime
+@inject ILocalStorageService localStorageService
+
+<style>
+    .chat-shell {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+    }
+
+    /* üzenetlista */
+    #chatContainer {
+        align-items: center;
+        height: calc(100% - 68px);
+        overflow-y: auto;
+        overflow-x: hidden;
+        background-color: rgba(0, 0, 0, .09);
+        align-content: end;
+        padding: 4px;
+    }
+
+    /* lekerekített input + gombok – a mintád alapján */
+    .mud-input.mud-input-outlined .mud-input-outlined-border {
+        border-radius: 20px;
+    }
+
+    .mud-button {
+        border-radius: 20px;
+    }
+
+    .appButton {
+        margin-left: auto;
+        margin-right: auto;
+        font-size: xx-small;
+        height: inherit;
+    }
+
+    .max-image-size {
+        max-width: 300px;
+        max-height: 300px;
+    }
+
+    .element-item {
+        width: 396px;
+        height: 66px;
+        margin-top: 4px;
+    }
+
+    .mud-chat-header {
+        font-size: .65rem;
+    }
+
+    .mud-chat-text-default {
+        font-size: .75rem;
+    }
+
+    .markdown-content p {
+        margin-bottom: 0rem;
+    }
+</style>
+
+<div class="chat-shell">
+    @if (!PageLoading)
+    {
+        <div class="pa-0" style="text-align:center; height:100%;">
+            <MudGrid Justify="Justify.SpaceEvenly" Class="pa-1"
+                     Style="height: inherit" Spacing="0">
+
+                <!-- Üzenetlista -->
+                <MudItem id="chatContainer" xs="12">
+                    @foreach (var chat in actualChatHistory.MessageList.OrderBy(o => o.Date))
+                    {
+                        if (chat.Role == "user")
+                        {
+                            <MudChat Color="Color.Default" Elevation="1" Variant="Variant.Text" ArrowPosition="ChatArrowPosition.Top" ChatPosition="ChatBubblePosition.End" Style="background-color: #ffffff; max-width: calc(80%); margin-left:auto; margin-bottom: 4px;">
+                                <MudChatHeader Name="@(string.IsNullOrEmpty(MainLayout.loggedUser.FirstName) ? "Felhasználó" : MainLayout.loggedUser.FirstName)" Time="@chat.Date.ToString("yyyy-MM-dd HH:mm:ss")" />
+                                <MudAvatar Size="Size.Medium">
+                                    <MudImage Src="img/profile.png" Alt="Profile" Height="80" Width="80" Style="border-radius: 100%; object-fit: cover; padding:4px;" />
+                                </MudAvatar>
+
+                                @if (chat.Message.Contains("*MODERATE*"))
+                                {
+                                    <MudChatBubble>
+                                        <MudAlert Severity="Severity.Error" Dense="true" Variant="Variant.Text">
+                                            Ez az üzenet, az Edu AI mesterséges intelligencia által moderálva lett!
+                                        </MudAlert>
+                                    </MudChatBubble>
+                                }
+                                else
+                                {
+                                    <MudChatBubble>@((MarkupString)chat.Message)</MudChatBubble>
+                                }
+                            </MudChat>
+                        }
+                        else
+                        {
+                            <MudChat Color="Color.Default" Elevation="1" Variant="Variant.Text" ArrowPosition="ChatArrowPosition.Top" ChatPosition="ChatBubblePosition.Start" Style="background-color: #ffffff; max-width: calc(80%); margin-right:auto; margin-bottom: 4px; background: linear-gradient(135deg, #00aab8, #007f8a);">
+                                <MudChatHeader Name="Edu AI" Time="@chat.Date.ToString("yyyy-MM-dd HH:mm:ss")" />
+                                <MudAvatar Size="Size.Medium">
+                                    <MudImage Src="img/edu.webp" Style="padding:4px;" />
+                                </MudAvatar>
+
+                                <MudChatBubble>@((MarkupString)chat.Message)</MudChatBubble>
+                            </MudChat>
+                        }
+                    }
+                </MudItem>
+
+                <!-- Input sor (desktop / mobil elrendezés a mintád szerint) -->
+                <MudItem xs="12" Class="d-flex">
+
+                    <style>
+                        .voice {
+                            width: auto;
+                            min-height: auto;
+                            padding: 2px;
+                            border-radius: 24px;
+                            border-bottom: hidden;
+                        }
+
+                            .voice .mud-icon-root.mud-svg-icon {
+                                fill: rgba(255, 255, 255, 0.3);
+                            }
+
+                        .mud-tooltip-root.mud-tooltip-inline {
+                            align-content: center;
+                        }
+                    </style>
+
+                    <MudTextField @ref="mudTextFieldRef" T="string" @bind-Value="recentMessage"
+                                  Variant="Variant.Filled" Label="Tegye fel kérdéseit az AI számára..."
+                                  Adornment="Adornment.End" AdornmentColor="Color.Primary"
+                                  AdornmentIcon="@Icons.Material.Filled.Send"
+                                  OnAdornmentClick="GPTResponse" OnKeyUp="OnKeyUp" Clearable="true" Disabled="@runLoading"></MudTextField>
+
+                    <MudTooltip Text="Hangutasítás" Arrow="true" Placement="Placement.Top" Color="Color.Primary" Style="margin-top: 6px; margin-left: 2px;">
+                        @* <MudIconButton Icon="@(runRecording? @Icons.Material.TwoTone.SettingsVoice : @Icons.Material.TwoTone.KeyboardVoice)" Color="Color.Inherit" Edge="Edge.Start" Class="appButton ma-2" OnClick="@(() => StartRecording())" Disabled="@runLoading" /> *@
+                        <MudMenu Style="margin-left: 4px;" Class="appbar voice">
+                            <ActivatorContent>
+                                <MudAvatar Size="Size.Medium" Variant="Variant.Outlined" Style="cursor: pointer;">
+                                    <MudIcon Icon="@(runRecording? @Icons.Material.TwoTone.SettingsVoice : @Icons.Material.TwoTone.KeyboardVoice)" Class="menu-icon" onclick="@(() => StartRecording())" Disabled="@runLoading" />
+                                </MudAvatar>
+                            </ActivatorContent>
+                        </MudMenu>
+                    </MudTooltip>
+                </MudItem>
+
+            </MudGrid>
+        </div>
+    }
+    else
+    {
+        <MudGrid Justify="Justify.SpaceEvenly" Class="pa-1" Style="height: calc(100vh); overflow-y: auto; overflow-x: hidden;" Spacing="0">
+            <MudItem xs="12" Style="text-align:center; align-content: center;">
+                <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+            </MudItem>
+        </MudGrid>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    public MainLayout MainLayout { get; set; } = default!;
+
+    [Parameter] public int CourseId { get; set; }
+
+    // LOADING
+    private bool PageLoading = true;
+    private bool runLoading = false;
+
+    private bool _isStreaming = false;
+
+    // CHAT STATE
+    private MudTextField<string> mudTextFieldRef;
+
+    private string recentMessage { get; set; } = string.Empty;
+    private string localIpAddress { get; set; } = "mobile";
+    private string remoteIpAddress { get; set; }
+
+    private MessageListModel actualChatHistory = new MessageListModel();
+
+    // RECORDING - HANGUTASÍTÁS
+    private bool runRecording = false;
+
+    // DOTNETREF
+    private DotNetObjectReference<ChatCard> dotNetRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await Task.Delay(1);
+
+            dotNetRef = DotNetObjectReference.Create(this);
+        }
+        catch (Exception ex)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt: {ex.Message}", MainLayout.pageWidth);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadChatHistory();
+
+            await Task.Delay(300);
+            PageLoading = false;
+
+            StateHasChanged();
+            //mudTextFieldRef?.FocusAsync();
+
+            // IP lekérés háttérszálon
+            localIpAddress = await Task.Run(() =>
+            {
+                try
+                {
+                    var host = System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName());
+                    var ip = host.AddressList
+                                 .FirstOrDefault(a => a.AddressFamily ==
+                                      System.Net.Sockets.AddressFamily.InterNetwork);
+                    return ip?.ToString() ?? "0.0.0.0";
+                }
+                catch
+                {
+                    return "0.0.0.0";
+                }
+            });
+        }
+    }
+
+    private async Task LoadChatHistory()
+    {
+        try
+        {
+            actualChatHistory.CourseId = CourseId;
+            if (actualChatHistory.MessageList.Count == 0)
+            {
+                var welcome = "Üdvözlöm! Tegye fel kérdéseit a kurzussal kapcsolatban!";
+
+                actualChatHistory.MessageList.Add(new MessageModel
+                {
+                    Id = 1,
+                    IPAddress = localIpAddress, // remoteIpAddress,
+                    Message = welcome,
+                    Role = "assistant",
+                    Date = DateTime.Now
+                });
+            }
+
+            await ScrollToBottom();
+        }
+        catch (Exception ex)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt: {ex.Message}", MainLayout.pageWidth);
+        }
+    }
+
+    /// <summary>
+    /// EVENT RECORDING
+    /// </summary>
+    #region EVENT RECORDING
+    private async Task StartRecording()
+    {
+        try
+        {
+            if (runLoading == false)
+            {
+                runRecording = !runRecording;
+                if (runRecording)
+                {
+                    await JSRuntime.InvokeVoidAsync("startRecording", dotNetRef);
+                }
+                else
+                {
+                    await StopRecording();
+                }
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt: {ex.Message}", MainLayout.pageWidth);
+        }
+    }
+
+
+    [JSInvokable("OnRecordingError")]
+    public Task OnRecordingError(string errorMessage)
+    {
+        // Itt kezeld a hibát – pl. snackbar, log, stb.
+        Console.WriteLine($"Recording error: {errorMessage}");
+        snackbarService.ShowSnackbar(Severity.Error, $"Recording error: {errorMessage}", MainLayout.pageWidth);
+
+        // Ha van pl. egy bound property, itt állíthatod és hívhatod a StateHasChanged()-et
+        // LastError = errorMessage;
+        // StateHasChanged();
+
+        return Task.CompletedTask;
+    }
+
+
+    // Ez hívódik meg JS-ből
+    [JSInvokable("OnRecordingStopped")]
+    public async Task OnRecordingStopped(string str)
+    {
+        try
+        {
+            if (runLoading == false && runRecording == true)
+            {
+                await StopRecording();
+            }
+        }
+        catch (Exception ex)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt: {ex.Message}", MainLayout.pageWidth);
+        }
+    }
+
+    private async Task StopRecording()
+    {
+        try
+        {
+            if (runLoading == false && runRecording == true)
+            {
+                runRecording = !runRecording;
+                string apiUrl = configuration["apiUrl"].ToString();
+
+                var accessToken = await localStorageService.GetItemAsync<string>("token");
+                if (accessToken == null)
+                    throw new HttpRequestException("Hiba történt: Token nem található!");
+
+                var response = await JSRuntime.InvokeAsync<string>("stopRecording", apiUrl, accessToken);
+
+                if (!string.IsNullOrEmpty(response))
+                {
+                    this.recentMessage = response;
+                    StateHasChanged();
+                    //mudTextFieldRef?.FocusAsync();
+                    await GPTResponse();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt: {ex.Message}", MainLayout.pageWidth);
+        }
+    }
+    #endregion
+
+    // ENTER
+    public async Task OnKeyUp(KeyboardEventArgs args)
+    {
+        if (args.Code == "Enter" || args.Code == "NumpadEnter")
+            await GPTResponse();
+    }
+
+    private async Task ScrollToBottom()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("scrollToBottom", "chatContainer");
+        }
+        catch (Exception jsEx)
+        {
+            Console.WriteLine("scrollToBottom hiba: " + jsEx);
+        }
+    }
+
+    // KÜLDÉS
+    private async Task GPTResponse()
+    {
+        if (!string.IsNullOrWhiteSpace(recentMessage))
+        {
+            var str = recentMessage;
+            recentMessage = string.Empty;
+            mudTextFieldRef?.Clear();
+            await InvokeAsync(StateHasChanged);
+            await QuestionClick(str);
+        }
+    }
+
+    // KÉRÉS logika (stream + mentés) – a mintád alapján
+    private async Task QuestionClick(string question)
+    {
+        if (_isStreaming) return;
+        _isStreaming = true;
+
+        runLoading = true;
+        StateHasChanged();
+
+        // --- 1. User és üres assistant buborék létrehozása UI-szálon ---
+        // felhasználói üzenet
+        var userChatId = actualChatHistory.MessageList.Count + 1;
+        var userModel = new MessageModel
+        {
+            Id = userChatId,
+            IPAddress = localIpAddress, // remoteIpAddress,
+            Message = question,
+            Role = "user",
+            Date = DateTime.Now
+        };
+        actualChatHistory.MessageList.Add(userModel);
+
+        // stream fogadó „üres” assistant buborék
+        var systemChatId = userChatId + 1;
+        var systemModel = new MessageModel
+        {
+            Id = systemChatId,
+            IPAddress = localIpAddress, // remoteIpAddress,
+            Message = "",
+            Role = "assistant",
+            Date = DateTime.Now
+        };
+        actualChatHistory.MessageList.Add(systemModel);
+        var target = actualChatHistory.MessageList.Last();
+
+        await ScrollToBottom();
+        await InvokeAsync(StateHasChanged);
+
+        // --- 2. A tényleges hálózati hívás + stream olvasás háttérszálon ---
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+
+                // üzenetlista összeállítás (utolsó 5)
+                var messageList = new MessageListModel
+                {
+                    MessageList = actualChatHistory.MessageList
+                        .Where(w => !string.IsNullOrWhiteSpace(w.Message))
+                        .OrderByDescending(o => o.Date)
+                        .Take(5)
+                        .OrderBy(o => o.Date)
+                        .Select(m => new MessageModel { Role = m.Role, Message = m.Message })
+                        .ToList(),
+                    CourseId = CourseId
+                };
+
+
+                var jsonString = JsonConvert.SerializeObject(messageList);
+                var content = new StringContent(jsonString, Encoding.UTF8, "application/json");
+
+                var url = configuration["apiUrl"] + "/api/ai/aistream";
+                var request = new HttpRequestMessage(HttpMethod.Post, url)
+                { Content = content };
+                request.Headers.Add("AccessToken", MainLayout.loggedUser.Token);
+
+                using var response = await httpClient
+                    .SendAsync(request, HttpCompletionOption.ResponseHeadersRead)
+                    .ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+
+                using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                using var reader = new StreamReader(stream);
+
+                var resultString = new StringBuilder();
+                var errorString = new StringBuilder();
+                var successString = new StringBuilder();
+
+                while (!reader.EndOfStream)
+                {
+                    var chunk = await reader.ReadLineAsync().ConfigureAwait(false);
+                    if (string.IsNullOrWhiteSpace(chunk)) continue;
+
+                    if (chunk.StartsWith("data:"))
+                    {
+                        var data = chunk["data:".Length..];
+                        // Az AI backend "~$~"-ként küld sortörést → rögtön visszaalakítjuk
+                        resultString.Append(data);
+
+                        // Stream alatt még ne markdown→html-t csináljunk, csak sima szöveget
+                        var plainText = resultString.ToString().Replace("~$~", "\n");
+                        //var plainText = MarkdownToHtmlConverter.ConvertMarkdownToHtml(resultString.ToString().Replace("~$~", "\n"));
+
+                        // UI frissítés a főszálon
+                        await InvokeAsync(async () =>
+                        {
+                            target.Message = plainText;   // itt MÉG sima szöveg
+                            await ScrollToBottom();
+                            StateHasChanged();
+                        });
+                    }
+                    else if (chunk.StartsWith("error:"))
+                    {
+                        errorString.Append(chunk["error:".Length..]);
+                        await InvokeAsync(StateHasChanged);
+                    }
+                    else if (chunk.StartsWith("success:"))
+                    {
+                        successString.Append(chunk["success:".Length..]);
+                        await InvokeAsync(StateHasChanged);
+                    }
+                }
+
+                // --- 3. Stream vége: itt egyszer markdown→HTML konverzió ---
+                if (resultString.Length > 0 && resultString.ToString().Contains("*MODERATE*"))
+                {
+                    var finalText = resultString.ToString().Replace("~$~", "\n");
+
+                    // moderációs jel esetén kezeljük külön
+                    var hasModerate = finalText.Contains("*MODERATE*");
+                    if (hasModerate)
+                    {
+                        finalText = finalText.Replace("*MODERATE*", "");
+
+                        var userChat = actualChatHistory.MessageList
+                            .FirstOrDefault(w => w.Id == userChatId);
+                        if (userChat is not null)
+                            userChat.Message = (userChat.Message + "\n*MODERATE*").Replace("\n\n", "\n");
+                    }
+
+                    var html = MarkdownToHtmlConverter.ConvertMarkdownToHtml(finalText);
+
+                    await InvokeAsync(() =>
+                    {
+                        target.Message = html;
+                        StateHasChanged();
+                    });
+                }
+
+                if (errorString.Length > 0)
+                {
+                    await InvokeAsync(() =>
+                    {
+                        snackbarService.ShowSnackbar(
+                            Severity.Error,
+                            $"Hiba történt: {errorString}",
+                            MainLayout.pageWidth);
+                    });
+                }
+
+                await InvokeAsync(ScrollToBottom);
+            }
+            catch (Exception ex)
+            {
+                await InvokeAsync(() =>
+                {
+                    Console.WriteLine("ChatCard stream hiba: " + ex);
+                    snackbarService.ShowSnackbar(
+                        Severity.Error,
+                        $"Hiba történt: {ex.Message}",
+                        MainLayout.pageWidth);
+                });
+            }
+            finally
+            {
+                _isStreaming = false;
+                runLoading = false;
+                StateHasChanged();
+                //mudTextFieldRef?.FocusAsync();
+            }
+        });
+
+    }
+}
+

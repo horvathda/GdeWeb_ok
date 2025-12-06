@@ -1,0 +1,272 @@
+﻿@using Microsoft.JSInterop
+@using MudBlazor
+@using Blazored.TextEditor
+@using Microsoft.AspNetCore.Components.Forms
+@using GdeWeb.Interfaces
+@using GdeWebModels
+
+@inject ITrainingService trainingService
+@inject IJSRuntime js
+
+<style>
+    .ql-custom-image {
+        border: none;
+        background: none;
+        padding: 0px !important;
+        cursor: pointer;
+        font-size: larger;
+    }
+
+        .ql-custom-image:hover {
+            background: rgba(0,0,0,.05);
+        }
+
+</style>
+
+<MudDialog>
+    <DialogContent>
+        <MudPaper Class="pa-2" Elevation="0">
+
+            <!-- Rejtett file input képfeltöltéshez -->
+            <InputFile id="htmlImageInput"
+                       @ref="_imageFile"
+                       OnChange="OnImageSelected"
+                       accept=".png,.jpg,.jpeg,.gif,.webp"
+                       style="display:none" />
+
+            <!-- TELJES TOOLBAR (HTML mód) -->
+            <BlazoredTextEditor @ref="_editor"
+                                Theme="snow"
+                                Placeholder="Írd ide a tartalmat…"
+                                EditorCssStyle="height:65vh">
+
+                <ToolbarContent>
+                    <!-- Headings -->
+                    <select class="ql-header">
+                        <option selected=""></option>
+                        <option value="1"></option>
+                        <option value="2"></option>
+                        <option value="3"></option>
+                        <option value="4"></option>
+                        <option value="5"></option>
+                    </select>
+
+                    <!-- Font + Size -->
+                    <span class="ql-formats">
+                        <select class="ql-font">
+                            <option selected=""></option>
+                            <option value="serif"></option>
+                            <option value="monospace"></option>
+                        </select>
+                        <select class="ql-size">
+                            <option value="small"></option>
+                            <option selected=""></option>
+                            <option value="large"></option>
+                            <option value="huge"></option>
+                        </select>
+                    </span>
+
+                    <!-- Emphasis -->
+                    <span class="ql-formats">
+                        <button class="ql-bold"></button>
+                        <button class="ql-italic"></button>
+                        <button class="ql-underline"></button>
+                        <button class="ql-strike"></button>
+                    </span>
+
+                    <!-- Colors -->
+                    <span class="ql-formats">
+                        <select class="ql-color"></select>
+                        <select class="ql-background"></select>
+                    </span>
+
+                    <!-- Lists / Indent / Align -->
+                    <span class="ql-formats">
+                        <button class="ql-list" value="ordered"></button>
+                        <button class="ql-list" value="bullet"></button>
+                        <button class="ql-indent" value="-1"></button>
+                        <button class="ql-indent" value="+1"></button>
+                        <select class="ql-align">
+                            <option selected=""></option>
+                            <option value="center"></option>
+                            <option value="right"></option>
+                            <option value="justify"></option>
+                        </select>
+                    </span>
+
+                    <!-- Block quote, code block, link -->
+                    <span class="ql-formats">
+                        <button class="ql-blockquote"></button>
+                        <button class="ql-code-block"></button>
+                        <button class="ql-link"></button>
+                    </span>
+
+                    <!-- Saját Kép beszúrása (feltöltéssel) -->
+                    <span class="ql-formats">
+                        <button type="button" class="ql-custom-image"
+                                onclick="blazorHelpers.clickById('htmlImageInput')"
+                                title="Kép beszúrása">
+                            <!-- használhatsz ikon fontot, vagy sima szöveget -->
+                            🖼
+                        </button>
+                    </span>
+
+                </ToolbarContent>
+
+                <!-- Kezdő tartalom -->
+                <EditorContent>
+                    @((MarkupString)(InitialHtml ?? string.Empty))
+                </EditorContent>
+
+            </BlazoredTextEditor>
+
+        </MudPaper>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Format">Formázás</MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="Cancel">Mégsem</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save">Mentés</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    /// Kezdő HTML (Element.ElementFile)
+    [Parameter] public string? InitialHtml { get; set; }
+
+    /// API alap URL (pl. https://szervered.hu) – opcionális, ha máshol is kell
+    [Parameter] public string? ApiBaseUrl { get; set; }
+
+    /// Fájlméret limit képekre (pl. 5 MB)
+    [Parameter] public long MaxImageSize { get; set; } = 5 * 1024 * 1024;
+
+    private BlazoredTextEditor? _editor;
+    private InputFile? _imageFile;
+
+    protected override void OnInitialized()
+    {
+        // semmi extra
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Format()
+    {
+        if (_editor is null)
+        {
+            MudDialog.Cancel();
+            return;
+        }
+
+        var text = await _editor.GetText();
+
+        //var html = await _editor.GetHTML();
+
+        text = text.Replace("<ul>", "<ol>").Replace("</ul>", "</ol>");
+
+        await _editor.LoadHTMLContent(text);
+
+        //await _editor.LoadHTMLContent();
+
+        StateHasChanged();
+    }
+
+    private async Task Save()
+    {
+        if (_editor is null)
+        {
+            MudDialog.Cancel();
+            return;
+        }
+
+        var html = await _editor.GetHTML();
+        MudDialog.Close(DialogResult.Ok<string>(html ?? string.Empty));
+    }
+
+    private async Task OnImageSelected(InputFileChangeEventArgs e)
+    {
+        if (_editor is null) return;
+
+        var file = e.File;
+        if (file is null) return;
+
+        // Típus ellenőrzés
+        if (!file.ContentType.StartsWith("image/"))
+        {
+            // Itt opcionálisan SnackBar/Toast
+            return;
+        }
+
+        if (file.Size > MaxImageSize)
+        {
+            // Itt opcionálisan SnackBar/Toast
+            return;
+        }
+
+        // Beolvasás
+        using var ms = new MemoryStream();
+        await file.OpenReadStream(maxAllowedSize: MaxImageSize).CopyToAsync(ms);
+        var bytes = ms.ToArray();
+
+        // Fájlnév: GUID + kiterjesztés
+        var ext = Path.GetExtension(file.Name);
+        if (string.IsNullOrWhiteSpace(ext))
+            ext = file.ContentType switch
+            {
+                "image/png" => ".png",
+                "image/jpeg" => ".jpg",
+                "image/jpg" => ".jpg",
+                "image/gif" => ".gif",
+                "image/webp" => ".webp",
+                _ => ".bin"
+            };
+
+        var guidName = $"{Guid.NewGuid():N}{ext}";
+
+        // Kép feltöltése az új HTML image endpointon (chunk-mentes egyszerű feltöltéshez is jó,
+        // de ha nagyon nagy képeid vannak, csinálhatunk chunk-os verziót is hasonlóan az elemekhez)
+        var result = await UploadHtmlImage(bytes, guidName);
+
+        if (result.Success)
+        {
+            // Publikus URL (API mögé tett statikus fájl: wwwroot/html/{ElementId}/{guid.ext})
+            var relativeUrl = result.ErrorMessage;         // pl. "html/123/abcd1234.png"
+            var publicUrl = string.IsNullOrWhiteSpace(ApiBaseUrl)
+                              ? $"/{relativeUrl}"
+                              : $"{ApiBaseUrl.TrimEnd('/')}/{relativeUrl}";
+
+            // Beszúrás az editorba
+            await _editor.InsertImage(publicUrl);
+        }
+        else
+        {
+            // Itt opcionálisan SnackBar/Toast result.ErrorMessage
+        }
+    }
+
+    // ---- IDE drótozd be a tényleges services hívást ----
+    private async Task<ResultModel> UploadHtmlImage(byte[] fileBytes, string fileName)
+    {
+        try
+        {
+            var model = new HtmlImageModel
+            {
+                Data = fileBytes,
+                Size = 0,
+                Name = fileName
+            };
+
+            // példa hívás – készíts hozzá kliens oldali metódust:
+            return await trainingService.UploadHtmlImageChunk(model);
+            // Ha itt nincs DI elérhető, dobd vissza hibával.
+            //return new ResultModel { Success = false, ErrorMessage = "Hookold be a trainigService.UploadHtmlImageChunk hívást!" };
+        }
+        catch (Exception ex)
+        {
+            return new ResultModel { Success = false, ErrorMessage = ex.Message };
+        }
+    }
+}
+

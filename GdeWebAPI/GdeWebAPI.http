@@ -1,0 +1,6 @@
+@GdeWebAPI_HostAddress = http://localhost:5015
+
+GET {{GdeWebAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

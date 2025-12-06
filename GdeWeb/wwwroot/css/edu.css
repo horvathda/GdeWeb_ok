@@ -1,0 +1,1036 @@
+﻿/* Alapszín – MAUI alatt is ugyanaz */
+:root {
+    --flip-accent-default: #0099A8;
+}
+
+html, body, #app {
+    height: 100%;
+    overflow: hidden; /* csak akkor, ha a MudGrid görget */
+    /*overflow: auto;*/ /* vagy töröld az overflow sort */
+}
+
+/* MUDLAYOUT */
+
+/* A teljes oldal flexre épül */
+.mud-layout {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* A fő tartalom (MudMainContent) nőhet */
+.main-content {
+    flex: 1 1 auto;
+    overflow: auto;
+    margin-top: 65px;
+    display: flex;
+    flex-direction: column;
+    background: var(--mud-palette-background, #f9f9f9);
+}
+
+.main-page {
+    flex: 1 1 auto; /* A belső elem (loading container) kitölti a maradék magasságot */
+    display: flex;
+    flex-direction: column;
+}
+
+/*MUDLAYOUT-CONTAINER*/
+
+.container {
+    max-width: 1200px;
+    min-height: 100%; /* kitölti a szülő blokk-magasságát */
+}
+
+.container-center {
+    justify-content: center; /* függőleges középre igazítás */
+    align-items: center; /* vízszintes középre igazítás (opcionális) */
+}
+
+/*MUDLAYOUT-TOOLBAR*/
+
+.mud-toolbar {
+    width: 100%;
+}
+
+/* === HEADER (AppBar) === */
+.appbar {
+    width: 100%;
+    min-height: 64px;
+    padding: clamp(10px, 1vw, 14px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    background: linear-gradient(135deg, #00aab8, #007f8a);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    position: relative;
+    z-index: 10;
+}
+
+    /* Fejléc szöveg */
+    .appbar .mud-typography {
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Gombok és ikonok */
+    .appbar .mud-button,
+    .appbar .mud-fab {
+        transition: all 0.2s ease-out;
+        border-radius: 999px !important;
+        font-weight: 600;
+    }
+
+        .appbar .mud-button:hover,
+        .appbar .mud-fab:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+        }
+
+    /* Avatar: diszkrét, üvegkeretes */
+    .appbar .mud-avatar {
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(6px);
+        transition: transform 0.15s ease;
+    }
+
+        .appbar .mud-avatar:hover {
+            transform: scale(1.05);
+        }
+
+/* === FOOTER (desktop + tablet) === */
+.footer {
+    background: linear-gradient(180deg, #0099a8 0%, #007580 100%);
+    color: white;
+    flex-shrink: 0;
+    padding: clamp(14px, 2vw, 20px);
+    text-align: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 clamp(12px, 3vw, 24px);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: clamp(8px, 2vw, 24px);
+    line-height: 1.6;
+    font-size: 0.95rem;
+}
+
+    /* Linkek egységesítése (MudLink is) */
+    .footer-content a,
+    .footer-content .mud-link {
+        color: rgba(255, 255, 255, 0.5) !important;
+        font-weight: 600;
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+        .footer-content a:hover,
+        .footer-content .mud-link:hover {
+            color: #ffffff !important;
+            text-decoration: underline;
+        }
+        /* mailto legyen kicsit hangsúlyosabb */
+        .footer-content a[href^="mailto:"] {
+            font-weight: 700;
+        }
+
+/* === MOBIL FINOMÍTÁSOK === */
+@media (max-width: 768px) {
+    /* Appbar középre igazítása maradhat */
+    .appbar {
+        flex-direction: row;
+        justify-content: center;
+        text-align: center;
+    }
+
+    /* A footer karcsúsítása: rács + kisebb sortáv/padding */
+    .footer {
+        padding: 10px 0; /* kevesebb külső padding */
+    }
+
+    .footer-content {
+        display: grid; /* flex -> grid, hogy alacsonyabb legyen */
+        grid-template-columns: 1fr 1fr; /* két oszlop, rövidebb sorok */
+        gap: 6px 12px;
+        padding: 10px 12px; /* kevesebb belső padding */
+        text-align: center;
+        line-height: 1.3;
+        font-size: 0.9rem;
+        justify-items: start; /* balra igazított elemek */
+    }
+
+        .footer-content > * {
+            margin: 0;
+        }
+        /* MudText/MudLink extra margóit lenullázzuk */
+
+        .footer-content a:hover, .footer-content .mud-link:hover {
+            text-decoration: none !important;
+        }
+}
+
+/* Nagyon keskeny kijelzőn (pl. 320px) még inkább kompakt */
+@media (max-width: 380px) {
+    .footer-content {
+        gap: 6px 10px;
+        font-size: 0.875rem;
+    }
+}
+
+/* Ha használod a glass-top-ot, maradhat a lekerekítés */
+@media (max-width: 640px) {
+    .footer.glass-top {
+        border-top-left-radius: 12px;
+        border-top-right-radius: 12px;
+    }
+}
+
+/*LOADING PROCESS*/
+
+.loading-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
+/*AUTH CARD*/
+
+/* Cards */
+.card-max {
+    max-width: 360px;
+    width: calc(100vw - 40px);
+    margin-left: auto;
+    margin-right: auto;
+    position: relative;
+    background-color: transparent;
+}
+
+.card-max-desktop {
+    width: 100%;
+    max-width: calc(100vw - 20px);
+    margin-left: auto;
+    margin-right: auto;
+    position: relative;
+    background-color: transparent;
+}
+
+.card-full {
+    height: 100%;
+    background-color: transparent;
+}
+
+.card-title {
+    font-size: 2.0rem;
+    font-weight: bold;
+}
+
+.card-subtitle {
+    margin-top: .5rem;
+    margin-bottom: 40px;
+    font-size: 1rem;
+}
+
+.mud-input .card-title {
+    font-size: .9rem;
+    font-weight: bold;
+}
+
+.mud-list .card-title {
+    font-size: .9rem;
+    font-weight: bold;
+}
+
+.mud-list .card-subtitle {
+    font-size: .8rem;
+}
+
+.mud-checkbox .card-title {
+    font-size: .8rem;
+    font-weight: bold;
+}
+
+.mud-checkbox .card-subtitle {
+    font-size: .6rem;
+}
+
+.mud-checkbox .mud-icon-button {
+    padding: 8px;
+}
+
+.card-data {
+    font-size: .6rem;
+    font-weight: bold;
+}
+
+.card-input {
+    margin-bottom: 0.5rem;
+}
+
+.card-group button {
+    font-size: 0.8rem;
+}
+
+.card-button {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    width: 100%;
+}
+
+.card-links {
+    font-size: 0.7em;
+    font-weight: bold;
+    line-height: 1.5rem;
+}
+
+.card-link {
+    font-size: inherit;
+    font-weight: inherit;
+}
+
+/* Profile */
+.profile-image {
+    height: inherit;
+    position: inherit;
+    width: inherit;
+    object-fit: cover;
+    width: 80px;
+    height: 80px;
+    border: 1px solid rgba(55, 40, 144, 1.0);
+    border-radius: 50%;
+    box-shadow: 0 7px 20px 5px rgba(55, 40, 144, 0.3) !important;
+    padding: 1px;
+    margin: auto;
+    transition-duration: 300ms;
+    transition: 0.4s;
+    cursor: pointer;
+}
+
+    .profile-image:hover {
+        border-color: var(--color-primary) !important; /* Border színváltozás hover állapotban */
+        transform: translateY(-3px); /* Gomb kicsit emelkedik a hover állapotban */
+    }
+
+/* HERO CAROUSEL */
+
+/* konténer: puha, modern */
+.hero-carousel {
+    height: clamp(260px, 40vw, 420px); /* legyen életszerű minimum magasság */
+    width: 100%;
+    border-radius: 0;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(15,23,42,.04) inset, 0 18px 40px rgba(2,6,23,.10);
+    background: #fff;
+}
+
+    /* slide: responsív magasság, kép kitöltés */
+    .hero-carousel .slide {
+        position: relative;
+        margin: 0;
+        width: 100%;
+        aspect-ratio: 16 / 6; /* desktop */
+        max-height: 420px;
+        isolation: isolate;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: clamp(8px, 2vw, 16px);
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+
+        /* finom sötétítés + színátmenet az olvashatóságért */
+        .hero-carousel .slide::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(0,0,0,.28) 0%, rgba(0,0,0,.10) 35%, rgba(0,0,0,.35) 100%), radial-gradient(80% 100% at 100% 0%, rgba(255,255,255,.12), transparent 60%);
+            z-index: 0;
+        }
+
+    /* feliratblokk – üvegkártya */
+    .hero-carousel .caption {
+        position: relative;
+        inset: auto 0 0 0; /* alul fut végig */
+        padding: clamp(16px, 4vw, 24px);
+        display: flex;
+        flex-direction: column;
+        gap: clamp(4px, 1.2vw, 8px);
+        max-width: min(900px, 92%);
+        /*        margin-left: clamp(16px, 6vw, 64px);
+        margin-bottom: clamp(12px, 3.5vw, 32px);*/
+        color: #fff;
+        z-index: 1;
+        background: rgba(17,25,40,.22);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,.18);
+        border-radius: 14px;
+        overflow: hidden; /*ne lógjon ki vizuálisan */
+        width: min(92%, 720px);
+        box-shadow: 0 10px 30px rgba(0,0,0,.25);
+        max-height: calc(100% - 1rem); /* sose legyen nagyobb a slide-nál */
+        text-align: center;
+    }
+
+    /* tipó */
+    .hero-carousel .title {
+        font-weight: 800;
+        letter-spacing: -.01em;
+        line-height: 1.15;
+        text-shadow: 0 2px 12px rgba(0,0,0,.35);
+    }
+
+    /* Alcím vágása, ha nincs elég hely */
+    .hero-carousel .subtitle {
+        color: rgba(255,255,255,.9);
+        max-width: 65ch;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2; /* max 2 sor */
+        -webkit-box-orient: vertical;
+    }
+
+    /* badge */
+    .hero-carousel .chip {
+        border-radius: 999px !important;
+        border-color: rgba(255,255,255,.6) !important;
+        color: #fff !important;
+        backdrop-filter: blur(6px);
+        height: fit-content;
+        font-size: clamp(12px, 0.8vw, 14px);
+        width: fit-content;
+        margin-left: auto;
+        margin-right: auto;
+        padding: .2rem 0.5rem;
+    }
+
+    /* cta */
+    .hero-carousel .cta {
+        align-self: flex-start;
+        font-weight: 700;
+        text-transform: none !important;
+        border-radius: 999px;
+        padding-inline: 16px;
+        transition: transform .16s ease-out, box-shadow .16s ease-out;
+        height: fit-content;
+        font-size: clamp(12px, 0.9vw, 16px);
+        padding: .2rem 1rem;
+        width: fit-content;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+        .hero-carousel .cta:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(2,6,23,.25);
+        }
+
+    /* nyilak – üvegkörök */
+    .hero-carousel .mud-icon-button {
+        width: 42px;
+        height: 42px;
+        border-radius: 999px;
+        background: rgba(255,255,255,.22);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,.25);
+        transition: background .15s ease-out, transform .15s ease-out;
+    }
+
+        .hero-carousel .mud-icon-button:hover {
+            background: rgba(255,255,255,.35);
+            transform: translateY(-1px);
+        }
+
+    .hero-carousel .mud-icon-size-medium {
+        font-size: 1.2rem;
+    }
+
+    /* bullet-ek – kicsi pill-ek, aktív nagyobb */
+    .hero-carousel .mud-carousel-bullets {
+        gap: 8px;
+        padding-bottom: 10px;
+    }
+
+    .hero-carousel .mud-carousel-arrow {
+        background: rgba(255,255,255,.75);
+        border-radius: 50%;
+    }
+
+    .hero-carousel .mud-carousel-bullets button {
+        width: 10px;
+        height: 10px;
+    }
+
+    .hero-carousel .mud-carousel-bullets .mud-button-root {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(255,255,255,.35);
+        border: 1px solid rgba(255,255,255,.5);
+        transition: width .16s ease-out, background .16s ease-out;
+    }
+
+    .hero-carousel .mud-carousel-bullets .mud-carousel-active {
+        width: 24px;
+        background: #fff;
+        transform: scale(1.25);
+    }
+
+/* mobil finomítás */
+@media (max-width: 768px) {
+    .hero-carousel .slide {
+        aspect-ratio: 16 / 9;
+        min-height: 220px;
+    }
+
+    .hero-carousel .caption {
+        /*        margin-left: 16px;
+        margin-right: 16px;
+        inset: auto 16px 16px 16px;*/
+    }
+
+    .hero-carousel .title {
+        font-size: 1.2rem;
+    }
+
+    .hero-carousel .subtitle {
+        font-size: .75rem;
+    }
+}
+
+/*FLIP CARD*/
+
+/* Flip-card alap CSS (komponenshez is betöltjük) */
+.flip-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center; /* középre igazítás */
+    margin: -6px; /* fele gap */
+}
+
+    .flip-container > * {
+        flex: 0 0 auto; /* fix szélességű elemek, ne nyúljanak */
+        margin: 6px; /* „gap” helyett margin */
+    }
+
+/* A kártya szélessége és aránya rugalmas, így minden képernyőn arányosan skálázódik. */
+.flip-fluid {
+    width: clamp(150px, 22vw, 200px) !important;
+    /* egységes forma: kb. 7:6 */
+    aspect-ratio: 7 / 6 !important;
+}
+
+@media (max-width: 640px) {
+    .flip-fluid {
+        width: 150px !important;
+        /* egységes forma: kb. 7:6 */
+        height: calc((150px / 7) * 6);
+    }
+}
+
+/* A kártya így már fix arányú dobozban van */
+.flip-card {
+    /* ha a style-ból nem jön meg, ebből él */
+    --flip-accent: var(--flip-accent-default);
+    position: relative;
+    height: 100%;
+    padding: clamp(10px, 1.6vw, 18px) !important;
+    border-radius: 16px;
+    /* fallback, ha color-mix nem támogatott */
+    background-color: rgba(0, 153, 168, 0.18);
+    /* finom mintázat a modern hatáshoz (nagyon halvány) */
+    background: radial-gradient(1200px 600px at -20% -20%, rgba(255,255,255,.7), transparent 60%), radial-gradient(800px 400px at 120% 0%, rgba(255,255,255,.35), transparent 55%), linear-gradient(180deg, #ffffff, #fbfbfd);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.02) inset, 0 8px 24px rgba(2, 6, 23, 0.04);
+    transition: transform .18s ease-out, box-shadow .18s ease-out, border-color .18s ease-out;
+    color: #0F172A; /* sötét szöveg a jó kontraszthoz */
+    cursor: pointer;
+}
+
+    /* Dekoratív akcent keret – visszafogott */
+    .flip-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        padding: 1px;
+        /* Fallback: simán a flip-accent szín, szépen kifakulva */
+        background: linear-gradient( 135deg, var(--flip-accent, #0099A8), transparent 60% );
+        /* Modern böngészőknél finomabb árnyalat (ha támogatja a color-mix-et) */
+        background: linear-gradient( 135deg, color-mix(in oklab, var(--flip-accent) 65%, transparent), transparent 60% );
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        opacity: .35;
+        pointer-events: none;
+        transition: opacity .18s ease-out;
+    }
+
+    /* Hover: enyhe emelkedés, kicsi fényesedés */
+    .flip-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.04) inset, 0 14px 36px rgba(2, 6, 23, 0.08);
+    }
+
+        .flip-card:hover::before {
+            opacity: .6;
+        }
+
+        .flip-card:hover .mud-icon-root {
+            transform: translateX(2px);
+        }
+
+    /* Billentyűzet-fókusz jól látható */
+    .flip-card:focus-within {
+        outline: 0;
+        box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--flip-accent);
+    }
+
+/* ---- FEJLÉC: ikon + címke ---- */
+.flip-header {
+    gap: 10px;
+    min-height: 40px;
+    margin-bottom: clamp(6px, 0.8vw, 10px);
+    justify-content: space-between;
+}
+
+/* „üveg” ikon háttér – modern, egységes */
+.flip-icon-wrap {
+    display: inline-grid;
+    place-items: center;
+    width: clamp(36px, 4.2vw, 48px);
+    height: clamp(36px, 4.2vw, 48px);
+    border-radius: 12px;
+    /* --- Fallback háttér (MAUI safe) --- */
+    background: rgba(255,255,255,.78);
+    /* --- Modern háttérréteg (ha támogatott) --- */
+    background: color-mix(in oklab, var(--flip-accent, #0099A8) 12%, #ffffff);
+    /* Üveghatás */
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    /* --- Fallback keret --- */
+    border: 1px solid rgba(15,23,42,.08);
+    /* --- Modern keret, ha támogatott --- */
+    border-color: color-mix(in oklab, var(--flip-accent, #0099A8) 25%, rgba(15,23,42,.08));
+    box-shadow: 0 2px 6px rgba(2, 6, 23, 0.06) inset;
+    /* Szín öröklés az ikonra */
+    color: var(--flip-accent, var(--flip-accent-default)); /* fallback */
+    color: color-mix(in oklab, var(--flip-accent, #0099A8) 86%, #0F172A);
+}
+
+.flip-icon {
+    font-size: clamp(20px, 2.6vw, 28px);
+    line-height: 1;
+    color: inherit; /* wrap-ból öröklődik → akcent szín */
+}
+
+/* Címke (MudChip) finom stílus */
+.flip-chip {
+    margin-left: auto;
+    font-weight: 600;
+    border-radius: 999px !important;
+    border-color: rgba(15,23,42,.12) !important;
+    color: #334155 !important;
+    padding-inline: 10px !important;
+    font-size: clamp(0.6rem, 0.5vw + 0.05rem, 0.8rem) !important;
+}
+
+/* Tipográfia */
+.flip-title {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    font-size: clamp(0.7rem, 1.1vw + 0.35rem, 1.0rem) !important;
+    line-height: 1.2;
+    margin-bottom: clamp(4px, .6vw, 8px);
+}
+
+.flip-desc {
+    color: #475569;
+    font-size: clamp(.55rem, .95vw, 0.65rem) !important;
+    line-height: 1.5;
+}
+
+/*SEARCH*/
+.fix-search {
+    position: sticky;
+    top: 0; /* mindig a tetején marad */
+    z-index: 100;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+.search {
+    max-width: 360px;
+    min-width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 20px;
+    margin-bottom: 12px;
+}
+
+
+/*ELEMENT CARD*/
+
+/* Rács: egységes kártyaszélesség, szép törés */
+.element-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit,minmax(320px,1fr));
+    gap: 16px;
+    width: 100%;
+    /* 🔥 minden sorban a legmagasabbhoz igazítja a többit */
+    align-items: stretch;
+}
+
+@media (max-width:640px) {
+    .element-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+}
+
+/* Kártya – puha felület, finom akcentkeret */
+.element-card {
+    position: relative;
+    width: 100%;
+    max-width: 360px !important;
+    height: 100%; /* a grid cellát teljesen kitölti */
+    display: flex;
+    flex-direction: column;
+    margin-inline: auto;
+    padding: 14px 16px; /* picit több belső tér a címnek */
+    border-radius: 16px;
+    /* fallback, ha color-mix nem támogatott */
+    background-color: rgba(0, 195, 137, 0.3) !important;
+    /* lágy, világos felület – ez ugyanaz maradhat */
+    background: radial-gradient(1200px 600px at -20% -20%, rgba(255,255,255,.8), transparent 60%), radial-gradient(800px 400px at 120% 0%, rgba(255,255,255,.55), transparent 55%), linear-gradient(180deg, #ffffff, #fbfbfd);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.02) inset, 0 8px 24px rgba(2, 6, 23, 0.04);
+    transition: transform .18s ease-out, box-shadow .18s ease-out;
+    color: #0F172A;
+    /*min-height : 145px;*/
+}
+
+    .element-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        padding: 1px;
+        /* Fallback: simán a flip-accent szín, szépen kifakulva */
+        background: linear-gradient(135deg, var(--element-accent, #00C389), transparent 60%);
+        /* Modern böngészőknél finomabb árnyalat (ha támogatja a color-mix-et) */
+        background: linear-gradient(135deg, color-mix(in oklab, var(--element-accent) 65%, transparent), transparent 60%);
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        opacity: .35; /* mennyire legyen erős a keret */
+        pointer-events: none;
+        transition: opacity .18s ease-out;
+        border-radius: inherit;
+    }
+
+    .element-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.04) inset, 0 14px 36px rgba(2, 6, 23, 0.08);
+    }
+
+        .element-card:hover::before {
+            opacity: .6;
+        }
+
+/* „success” variáns – kicsit erősebb háttér a színnel */
+.element-card-success {
+    /*background: rgba(0, 195, 137, 0.18) !important;*/
+    /* ha akarsz, rakhatsz rá egy kis saját zöld gradienst is: */
+    background: linear-gradient(180deg, rgba(0,195,137,0.22), rgba(0,195,137,0.32)) !important;
+}
+
+/* Sor elrendezés: fixebb ikon-oszlop, stabil közép */
+.element-row {
+    display: grid;
+    grid-template-columns: 36px 1fr auto; /* 56px ikon oszlop */
+    align-items: center;
+    gap: 12px;
+    min-height: 88px;
+    height: 100%;
+}
+
+/* Bal oldali ikonoszlop – egymás alatt */
+.element-icons {
+    display: flex;
+    flex-direction: column; /*⬅ egymás alá helyezi */
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 100%;
+}
+
+/* Ikon-badge (üveg) */
+.element-icon-wrap {
+    display: inline-grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    /* --- Fallback háttér (MAUI safe) --- */
+    background: rgba(255,255,255,.78); /* üveges hatás – fehér + blur, nem színkeverés */
+    background: color-mix(in oklab, var(--element-accent) 12%, #ffffff);
+    /* Üveghatás */
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    /* fallback */
+    border: 1px solid rgba(15,23,42,.08); /* akcent színű finom keret */
+    border-color: color-mix(in oklab, var(--element-accent) 25%, rgba(15,23,42,.08));
+    box-shadow: 0 2px 6px rgba(2, 6, 23, 0.06) inset;
+    /* innen öröklünk mindent az ikonra */
+    /* fallback */
+    color: var(--element-accent, #00C389);
+    color: color-mix(in oklab, var(--element-accent) 86%, #0F172A);
+}
+
+.element-icon-wrap-error {
+    /* --- Fallback háttér (MAUI safe) --- */
+    background: rgba(255,255,255,.78); /* üveges hatás – fehér + blur */
+    background: color-mix(in oklab, #DB3181 12%, #ffffff);
+    /* --- Fallback keret --- */
+    border-color: rgba(15,23,42,.08);
+    border-color: color-mix(in oklab, #DB3181 25%, rgba(15,23,42,.08)) !important;
+}
+
+.element-icon {
+    font-size: 26px;
+    line-height: 1;
+    color: inherit; /* a wrap colorját használjuk (az akcentet) */
+}
+
+.element-icon-error {
+    color: #DB3181;
+    color: color-mix(in oklab, #DB3181 86%, #0F172A) !important;
+}
+
+/* Közép tartalom */
+.element-mid {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* első felül, utolsó alul */
+    min-width: 0;
+    height: 100%;
+    text-align: center;
+}
+/* line-clamp-hoz kell */
+.element-title {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    margin-bottom: 2px;
+    font-size: clamp(.8rem, 0.95rem + 0.2vw, 1.0rem);
+}
+
+/* Leírás: halkabb szín, 2 sor clamp (mint eddig) */
+.element-desc {
+    color: #5b6675;
+    font-size: clamp(.65rem, .70rem + .1vw, .80rem);
+    line-height: 1.4;
+    /* 2 soros clamp + tooltip a title-ben */
+    display: -webkit-box;
+    -webkit-line-clamp: 3; /* csak 3 sor látszódik */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Meta sor: chip + elemszám */
+
+.element-count {
+    color: #8a94a6;
+    font-size: clamp(.6rem, .6rem + .1vw, .8rem) !important;
+}
+
+.element-show {
+    color: var(--mud-palette-secondary);
+    font-size: clamp(.5rem, .5rem + .1vw, .6rem) !important;
+    font-weight: 600;
+}
+
+/* Jobb oldali akciók – diszkrét, hoverre erősödik */
+.element-right {
+    display: flex;
+    flex-direction: column; /*gombok egymás alatt */
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.element-action {
+    opacity: .65;
+    width: 34px;
+    height: 34px;
+    transition: opacity .16s ease-out, transform .16s ease-out;
+}
+
+.element-card:hover .element-action {
+    opacity: 1;
+}
+
+.element-action:hover {
+    transform: translateY(-1px);
+}
+
+.element-pulse {
+    animation: pulse 1.3s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.5;
+        transform: scale(1.04);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Kis kijelzőn kényelmesebb sor-irány */
+/* Mobil tördelés – kompakt */
+@media (max-width: 640px) {
+    /* Ikon badge kisebb mobilon */
+    .element-card {
+        max-width: 320px;
+        padding: 8px 8px;
+        border-radius: 14px;
+    }
+
+    .element-icon-wrap {
+        width: 26px !important;
+        height: 26px !important;
+        border-radius: 6px !important;
+    }
+
+    .element-icon {
+        font-size: 20px !important;
+    }
+
+    .element-title {
+        font-size: 0.8rem;
+    }
+
+    .element-desc {
+        -webkit-line-clamp: 3; /* csak 3 sor mobilon */
+        font-size: .6rem;
+    }
+
+    .element-count {
+        font-size: .6rem;
+    }
+
+    .element-action {
+        width: 30px;
+        height: 30px;
+    }
+}
+
+/* ---- BADGE CARD ---- */
+/* Általános kártya állapotok */
+.badge-card {
+    display: flex; /* azonos magasság a rácsban */
+    flex-direction: column;
+    height: 100%;
+    transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+    border-radius: 16px;
+    width: 160px;
+}
+
+.badge-card--active:hover {
+    transform: translateY(-2px);
+}
+
+/* NEM áttetsző többé – csak szürkítés, enyhe sötétítés */
+.badge-card--inactive {
+    filter: grayscale(100%) saturate(0.6) brightness(0.95);
+    /* opacity: 1;  -- ne legyen átlátszó */
+}
+
+/* Tartalom elrendezés */
+.badge-card__content {
+    flex: 1 1 auto; /* kitölti a kártyát */
+    display: flow;
+    grid-template-columns: auto 1fr;
+    gap: 1rem;
+    /*align-items: center;
+    min-height: 140px;*/ /* egységes kártyamagasság érzet */
+    align-items: start;
+    flex: 1 1 auto;
+    /*height: 100%;*/ /* <- fontos */
+    height: 252px;
+    text-align: center;
+}
+
+/* Nagy, színes, szöveges ikon (emoji) */
+.badge-card__icon {
+    font-size: 2.5rem;
+    line-height: 1;
+    width: 3.0rem;
+    height: 3.0rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Szövegek */
+.badge-card__title {
+    font-weight: 700;
+    margin-bottom: .15rem;
+}
+
+/* A szöveg-oszlop legyen függőleges flex-konténer,
+   hogy a meta alulra tolható legyen */
+.badge-card__text {
+    /*display: flex;*/
+    display: inline-grid;
+    flex-direction: column;
+    min-height: 100%;
+    justify-items: center;
+}
+
+    .badge-card__text .mud-typography-h6 {
+        font-size: .8rem;
+    }
+
+    .badge-card__text .mud-typography-body2 {
+        font-size: .7rem;
+    }
+
+.badge-card__meta {
+    display: flow;
+    gap: .5rem;
+    /*margin-top: .4rem;*/
+    margin-top: auto; /* <- ettől kerül mindig legalul */
+    flex-wrap: wrap;
+}
+
+/* Ha vannak CardActions-ek, azok kerüljenek legalul */
+.badge-card .mud-card-actions {
+    margin-top: auto;
+}

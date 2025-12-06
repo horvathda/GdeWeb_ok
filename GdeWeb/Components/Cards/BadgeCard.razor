@@ -1,0 +1,64 @@
+﻿@using GdeWebModels
+@using MudBlazor
+
+<MudCard Class="@($"{CardClass}")" Elevation="@(Badge.Points > 0 ? 8 : 2)">
+    <MudCardContent Class="badge-card__content">
+
+        <div class="badge-card__text">
+
+            <div class="badge-card__icon">@Badge.Icon</div>
+
+            <MudSpacer />
+
+            <MudText Typo="Typo.h6" Class="badge-card__title">@Badge.Name</MudText>
+            <MudText Typo="Typo.body2">@Badge.Description</MudText>
+
+            <MudSpacer />
+
+            <div class="badge-card__meta">
+                <MudChip T="String" Class="badge-card__tier"
+                         Style="@($"background:{TierBgHex};color:{TierFgHex};font-size: .7rem; font-weight: 700;")"
+                         Variant="Variant.Filled">
+                    @TierLabel
+                </MudChip>
+
+                @if (Badge.Points > 0)
+                {
+                    <MudChip T="String" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle" Style="font-size: .7rem; text-wrap-mode: wrap; text-wrap: balance;">
+                        Megszerezve @Badge.EarnedAt?.ToString("yyyy.MM.dd.")
+                    </MudChip>
+                }
+                else
+                {
+                    <MudChip T="String" Color="Color.Default" Icon="@Icons.Material.Outlined.Lock" Style="font-size: .7rem; text-wrap-mode: wrap; text-wrap: balance;">
+                        Nincs megszerezve
+                    </MudChip>
+                }
+            </div>
+        </div>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired] public UserBadgeModel Badge { get; set; } = default!;
+
+    private string CardClass => Badge.Points > 0 ? "badge-card badge-card--active" : "badge-card badge-card--inactive";
+
+    private string TierLabel => Badge.Tier switch
+    {
+        BadgeTier.Gold => "Arany",
+        BadgeTier.Silver => "Ezüst",
+        _ => "Bronz"
+    };
+
+    // Egyszerű, esztétikus színek (testre szabhatók a Theme-ben)
+    private string TierBgHex => Badge.Tier switch
+    {
+        BadgeTier.Gold => "#F4C430",   // arany
+        BadgeTier.Silver => "#C0C0C0", // ezüst
+        _ => "#CD7F32"                 // bronz
+    };
+
+    private string TierFgHex => "#1A1A1A";
+}
+

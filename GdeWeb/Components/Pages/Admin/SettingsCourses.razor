@@ -1,0 +1,251 @@
+﻿@using GdeWeb.Components.Cards
+@using GdeWeb.Components.Layout
+@using GdeWeb.Dialogs
+@using GdeWeb.Interfaces
+@using GdeWebModels
+
+@inject ITrainingService trainingService
+@inject IDialogService dialogService
+@inject ISnackbarService snackbarService
+
+<style>
+    .horisontal-list {
+        /* List */
+        display: flex;
+        flex-wrap: wrap; /* ez teszi lehetővé a sorba rendezést és a törést */
+        gap: 16px; /* ha akarsz távolságot az elemek között */
+        justify-content: center; /* ez teszi középre vízszintesen */
+        align-content: flex-start; /* felülre igazít */
+    }
+
+    .search .mud-fab-size-small {
+        width: 36px;
+        height: 36px;
+    }
+
+    .card-input-margin-right {
+        margin-right: 12px;
+    }
+</style>
+
+<!-- BODY -->
+<MudPaper Class="card-full zero-padding text-center h-100" Elevation="0">
+
+    @if (!PageLoading)
+    {
+        <BlazorAnimate.Animate Animation="Animations.ZoomIn" Delay="TimeSpan.FromSeconds(MainLayout.animationDelay)" Duration="TimeSpan.FromSeconds(MainLayout.animationDuration)" style="width: 100%;">
+
+            <MudPaper Class="@(MainLayout.isMobile ? "card-max" : "card-max-desktop")" Style="text-align: center; padding-bottom: 0px; height: 100%;" Elevation="0">
+
+                <!-- ===== DESKTOP/TABLET ===== -->
+                @if (!MainLayout.isMobile)
+                {
+                    <style>
+                        /* fix szélesség */
+                        .search {
+                            margin-right: 20px;
+                            margin-top: 30px;
+                        }
+                    </style>
+
+                    <!-- Kereső + kategória-szűrő (meglévő) -->
+                    <div class="fix-search">
+                        <div class="d-flex" style="width: min-content; margin-left: auto; margin-right: auto;">
+                            <div class="search d-flex" style="max-width: 360px; min-width: 300px;">
+
+                                <MudTextField @bind-Value="searchText" Placeholder="Keresés" Clearable="true" Variant="Variant.Text" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" OnKeyUp="FilterCourses" />
+
+                            </div>
+
+                            @if (MainLayout.loggedUser.Roles.Any(r => r.Name == "Admin"))
+                            {
+                                <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" OnClick="@AddCourse" Style="margin-top: auto;" />
+                            }
+                        </div>
+
+                        <MudText Typo="Typo.h6" Class="mt-5">Kurzusok</MudText>
+                    </div>
+
+                    <div class="horisontal-list" style="width:100%;">
+                        <div class="element-grid">
+                            @foreach (var course in filteredCourses.ToList())
+                            {
+                                <CourseCard Course="course" Editor="true" ChangeModifyMethod="LoadData" />
+                            }
+                        </div>
+                    </div>
+                }
+
+                <!-- ===== MOBIL ===== -->
+                @if (MainLayout.isMobile)
+                {
+                    <!-- Kereső + kategória-szűrő (meglévő) -->
+                    <div class="fix-search">
+                        <div style="display:flow;">
+                            <div class="search d-flex" style="max-width: 360px;">
+
+                                <MudTextField @bind-Value="searchText" Placeholder="Keresés" Clearable="true" Variant="Variant.Text" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" OnKeyUp="FilterCourses" Class="card-input-margin-right" />
+
+                                @if (MainLayout.loggedUser.Roles.Any(r => r.Name == "Admin"))
+                                {
+                                    <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" OnClick="@AddCourse" />
+                                }
+
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <MudText Typo="Typo.h6" Class="mb-0">Kurzusok</MudText>
+
+                    <div class="horisontal-list" style="width:100%;">
+                        <div class="element-grid">
+                            @foreach (var course in filteredCourses.ToList())
+                            {
+                                <CourseCard Course="course" Editor="true" ChangeModifyMethod="LoadData" />
+                            }
+                        </div>
+                    </div>
+                }                
+
+            </MudPaper>
+
+        </BlazorAnimate.Animate>
+    }
+    else
+    {
+        <!-- LOADING -->
+        <div class="loading-center">
+            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+        </div>
+    }
+
+</MudPaper>
+
+@code {
+    [CascadingParameter]
+    public MainLayout MainLayout { get; set; } = default!;
+
+    // LOADING PARAMETERS
+    private bool PageLoading = true; // true
+
+    //SEARCH TEXT
+    private string searchText = string.Empty;
+
+    // COURSE LIST
+    private List<CourseModel> CourseList = new();
+
+    // FILTERED COURSE LIST
+    private List<CourseModel> filteredCourses = new();
+
+    /// <summary>
+    /// PAGE LOAD
+    /// </summary>
+    #region PAGE LOAD
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await Task.Delay(1);
+            base.OnInitialized();
+        }
+        catch (Exception ex)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt a betöltés során: {ex.Message.ToString()}", MainLayout.pageWidth);
+        }
+
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadData();
+
+            // Page load end
+            await Task.Delay(500);
+            PageLoading = false;
+
+            StateHasChanged();
+        }
+    }
+    #endregion
+
+
+    /// <summary>
+    /// BUTTON METHODES
+    /// </summary>
+    #region BUTTON METHODES
+    private async Task AddCourse()
+    {
+        //snackbarService.ShowSnackbar(Severity.Warning, $"Adding a search is only possible through the mobile application!", MainLayout.pageWidth);
+
+        DialogOptions options = new DialogOptions
+            {
+                CloseOnEscapeKey = true,
+                FullWidth = true,
+                MaxWidth = MaxWidth.ExtraSmall,
+                //MaxWidth = MaxWidth.Large, 
+                //FullScreen = true,
+                BackdropClick = false
+            };
+
+        var parameters = new DialogParameters
+        {
+            ["Course"] = new CourseModel()
+        };
+
+        var dialog = await dialogService.ShowAsync<CourseDialog>("Kurzus szerkesztése", parameters, options);
+        DialogResult? dialogResult = await dialog.Result;
+        if (dialogResult is not null && !dialogResult.Canceled)
+        {
+            await LoadData();
+        }
+
+        StateHasChanged();
+    }
+    #endregion
+
+
+
+    /// <summary>
+    /// REFRESH METHODES
+    /// </summary>
+    #region REFRESH METHODES
+    private async Task LoadData()
+    {
+        await Task.Delay(10);
+
+        var listModel = await trainingService.GetCourseList();
+        if (listModel.Result.Success && listModel.CourseList is not null)
+        {
+            CourseList = listModel.CourseList.ToList();
+            FilterCourses(new KeyboardEventArgs());
+        }
+        else
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt a betöltés során: {listModel.Result.ErrorMessage.ToString()}", MainLayout.pageWidth);
+        }
+
+        StateHasChanged();
+    }
+    #endregion
+
+
+    /// <summary>
+    /// FILTER METHODES
+    /// </summary>
+    #region FILTER METHODES
+    private void FilterCourses(KeyboardEventArgs _)
+    {
+        filteredCourses = CourseList
+            .Where(x =>
+                (x.CourseTitle ?? "").Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                (x.CourseDescription ?? "").Contains(searchText, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        StateHasChanged();
+    }
+    #endregion
+}

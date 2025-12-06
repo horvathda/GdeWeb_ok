@@ -1,0 +1,50 @@
+﻿@using MudBlazor
+@using GdeWeb.Components.Layout
+
+<div class="flip-fluid">
+    <MudCard Class="flip-card d-flex flex-column"
+             Elevation="0"
+             Style="@($"--flip-accent:{FrontColor};")" @onclick="@(() => MainLayout.GoTo(@Link, CheckLogged))">
+        <div class="flip-header d-flex align-center">
+            @if (!string.IsNullOrWhiteSpace(Icon))
+            {
+                <span class="flip-icon-wrap">
+                    <MudIcon Icon="@Icon" Class="flip-icon" />
+                </span>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(Tag))
+            {
+                <MudChip T="String" Class="flip-chip" Color="Color.Default" Variant="Variant.Outlined" Size="Size.Small">
+                    @Tag
+                </MudChip>
+            }
+        </div>
+
+        <MudText Typo="Typo.h6" Class="flip-title">@Title</MudText>
+
+        <MudSpacer />
+
+        @if (!string.IsNullOrWhiteSpace(Description))
+        {
+            <MudTooltip Text="@Description">
+                <MudText Typo="Typo.body2" Class="flip-desc">@(Description.Length > 50 ? Description.Substring(0, 47) + "..." : Description)</MudText>
+            </MudTooltip>
+        }
+
+    </MudCard>
+</div>
+
+@code {
+    [CascadingParameter]
+    public MainLayout MainLayout { get; set; } = default!;
+
+    [Parameter] public string Title { get; set; } = default!;
+    [Parameter] public string Tag { get; set; } = default!;
+    [Parameter] public string Description { get; set; } = default!;
+    [Parameter] public string Link { get; set; } = "#";
+    [Parameter] public bool CheckLogged { get; set; } = false;
+    [Parameter] public string Icon { get; set; } = Icons.Material.Filled.Dashboard;
+    [Parameter] public string FrontColor { get; set; } = "var(--mud-palette-primary)";
+}
+

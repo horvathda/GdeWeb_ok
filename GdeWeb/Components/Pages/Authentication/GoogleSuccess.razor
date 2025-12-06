@@ -1,0 +1,25 @@
+﻿@page "/google-success"
+
+@inject NavigationManager NavigationManager
+@inject GdeWeb.Services.CustomAuthentication Auth
+
+<h3>Bejelentkezés folyamatban...</h3>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var token = query["token"];
+
+        if (!string.IsNullOrEmpty(token))
+        {
+            await Auth.MarkUserAsAuthenticated(token);
+            NavigationManager.NavigateTo("/", true);
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/authentication/signin", true);
+        }
+    }
+}

@@ -1,0 +1,511 @@
+﻿@using BlazorAnimate
+@using GdeWeb.Components.Layout
+@using GdeWeb.Interfaces
+@using GdeWebModels
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@using MudBlazor
+@using System.Text
+
+@inject IJSRuntime jsRuntime
+@inject ITrainingService trainingService
+@inject IDialogService dialogService
+@inject ISnackbarService snackbarService
+@inject IConfiguration configuration
+@inject HttpClient httpClient
+
+<style>
+    .mud-dialog {
+        height: 100%
+    }
+
+    .mud-dialog-content {
+        margin-top: 0px !important;
+        padding: 0px 12px !important;
+    }
+
+    .mud-dialog-width-full
+    {
+        width: calc(100% - 16px);
+    }
+
+    .mud-card-content {
+        padding: 0px;
+    }
+
+    .card-section-title {
+        font-size: 1.2rem;
+        margin-bottom: 0.7rem;
+    }
+
+    .movie-list {
+        display: grid;
+    }
+
+    .mud-expand-panel .mud-expand-panel-content {
+        display: grid;
+    }
+</style>
+
+<MudDialog>
+    <DialogContent>
+        <MudPaper Elevation="0">
+
+            <MudTabs @bind-ActivePanelIndex="@activePanelIndex" Outlined="false" Elevation="0" HideSlider="false" Position="Position.Top" SliderAnimation="true" Centered="true">
+
+                <MudTabPanel Text="AI generálás" Icon="@Icons.Material.TwoTone.GeneratingTokens">
+
+                    <BlazorAnimate.Animate Animation="Animations.ZoomIn" Delay="TimeSpan.FromSeconds(MainLayout.animationDelay)" Duration="TimeSpan.FromSeconds(MainLayout.animationDuration)" style="height: 100%">
+
+                        <MudCard Elevation="0" Class="card-max h-100">
+                            <MudCardContent>
+
+                                <MudText Align="Align.Left" Typo="Typo.h1" Class="card-title mt-5" Color="Color.Secondary">
+                                    Kurzus generálása
+                                </MudText>
+
+                                <MudText Align="Align.Left" Typo="Typo.h5" Class="card-subtitle mb-5">
+                                    Adja meg a témát, hogy a mesterséges inteligencia létrehozza a kurzust!
+                                </MudText>
+
+                                <MudTextField Class="mb-5" @bind-Value="@Course.CourseAiRequest.Topic" Label="Téma (maximum 50 karakter)" Variant="Variant.Text" Required="true" MaxLength="50" Lines="3" Disabled="@isGenerating" />
+
+                                <MudSelect T="int" Class="mb-5"
+                                           @bind-Value="Course.CourseAiRequest.Duration"
+                                           Label="Időtartam"
+                                           Variant="Variant.Text"
+                                           FullWidth="true"
+                                           Required="true" Disabled="@isGenerating">
+                                    <MudSelectItem T="int" Value="30">30 másodperc</MudSelectItem>
+                                    <MudSelectItem T="int" Value="45">45 másodperc</MudSelectItem>
+                                    <MudSelectItem T="int" Value="60">60 másodperc</MudSelectItem>
+                                    <MudSelectItem T="int" Value="90">90 másodperc</MudSelectItem>
+                                    <MudSelectItem T="int" Value="120">120 másodperc</MudSelectItem>
+                                </MudSelect>
+
+                                <MudSelect T="string" Class="mb-5" @bind-Value="Course.CourseAiRequest.Language" Label="Nyelv" Variant="Variant.Text" Disabled="@isGenerating">
+                                    <MudSelectItem Value="@("magyar")">magyar</MudSelectItem>
+                                    <MudSelectItem Value="@("angol")">angol</MudSelectItem>
+                                </MudSelect>
+
+                                <MudNumericField Class="mb-5" @bind-Value="Course.CourseAiRequest.MinScenes" Label="Videójelenetek száma (3-10)" Variant="Variant.Text" Min="3" Max="10" Disabled="@isGenerating" />
+
+                                <MudNumericField Class="mb-5" @bind-Value="Course.CourseAiRequest.QuizCount" Label="Kvízkérdések száma (3-10)" Variant="Variant.Text" Min="3" Max="10" Disabled="@isGenerating" />
+
+                                <MudButton Class="mt-5 mb-0 card-button" Variant="Variant.Filled" Color="Color.Primary" DropShadow="true" OnClick="Generate" Disabled="@isGenerating">
+                                    @(isGenerating ? "Generálás folyamatban..." : "Generálás")
+                                </MudButton>
+
+                            </MudCardContent>
+                        </MudCard>
+
+                    </BlazorAnimate.Animate>
+
+                </MudTabPanel>
+
+                <MudTabPanel Text="Előnézet" Icon="@Icons.Material.TwoTone.Preview">
+
+                    <BlazorAnimate.Animate Animation="Animations.ZoomIn" Delay="TimeSpan.FromSeconds(MainLayout.animationDelay)" Duration="TimeSpan.FromSeconds(MainLayout.animationDuration)" style="height: 100%">
+
+                        <MudCard Elevation="0" Class="card-max h-100">
+                            <MudCardContent>
+
+                                <MudText Align="Align.Left" Typo="Typo.h1" Class="card-title mt-5" Color="Color.Secondary">
+                                    Kurzus szerkesztése
+                                </MudText>
+
+                                <MudText Align="Align.Left" Typo="Typo.h5" Class="card-subtitle mb-5">
+                                    Szerkessze a generált kurzust, majd mentse el!
+                                </MudText>
+
+                                <MudTextField Class="mb-5 card-input" @bind-Value="Course.CourseTitle" Label="Cím (max 30)" Variant="Variant.Text" MaxLength="30" />
+
+                                <MudTextField Class="mb-5 card-input" @bind-Value="Course.CourseDescription" Label="Rövid leírás (max 60)" Variant="Variant.Text" MaxLength="60" Lines="2" />
+
+                                <MudDivider Class="my-2" />
+
+                                <MudText Align="Align.Left" Typo="Typo.h3" Class="card-title card-section-title mt-5" Color="Color.Secondary">
+                                    Szöveges tartalom
+                                </MudText>
+
+                                <MudButton Class="mb-5 mt-0 card-button" Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Edit" OnClick="OpenHtmlEditor">
+                                    HTML szerkesztése
+                                </MudButton>
+
+                                <MudPaper Class="mb-5 pa-2" Elevation="0" Style="border:1px solid rgba(0,0,0,.08); max-height:240px; overflow:auto;">
+                                    @((MarkupString)(Course.CourseFile ?? string.Empty))
+                                </MudPaper>
+
+                                <MudDivider Class="my-2" />
+
+                                <MudText Align="Align.Left" Typo="Typo.h3" Class="card-title card-section-title mt-5" Color="Color.Secondary">
+                                    Videó tartalom
+                                </MudText>
+
+                                <div style="text-align:center; width: 100%;">
+                                    @if (!dialogLoaded)
+                                    {
+                                        @if (!string.IsNullOrEmpty(Course.CourseMedia))
+                                        {
+                                            <video id="videoPlayer" controls style="width: 100%; height: auto; object-fit: contain;">
+                                                <source src="@(Course.CourseMedia.StartsWith("data:") ? Course.CourseMedia : (configuration["apiUrl"] + "/" + Course.CourseMedia))" type="video/mp4">
+                                                A böngésző nem támogatja a videó lejátszást.
+                                            </video>
+                                        }
+                                        else
+                                        {
+                                            <MudText Color="Color.Error">Nincs feltöltött videó</MudText>
+                                            <MudText>@($"Max. felbontás: {maxVideoWidth}x{maxVideoHeight}px, max. méret: {Math.Floor(maxFileSize / 1024.0 / 1024.0)} MB")</MudText>
+                                        }
+                                        <MudButton HtmlTag="label" Variant="Variant.Filled" Class="mt-2 mb-2 card-button"
+                                                   Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload">
+                                            MP4 videó feltöltése
+                                            <InputFile OnChange="UploadVideo" accept=".mp4" hidden />
+                                        </MudButton>
+                                    }
+                                    else
+                                    {
+                                        <div style="display: inline-grid;">
+                                            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+                                            @if (progressPercentage > 0)
+                                            {
+                                                <MudText Typo="Typo.caption">@($"{progressPercentage}%")</MudText>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+
+                                <MudExpansionPanels Elevation="0">
+                                    @foreach (var q in Course.CourseAiResponse.movie)
+                                    {
+                                        <MudExpansionPanel Text="@(q.scene.ToString() + ". jelenet")" Class="movie-list">
+                                            <MudText Typo="Typo.caption"><strong>Idő: </strong>@q.time</MudText>
+                                            <MudText Typo="Typo.caption"><strong>Narráció: </strong>@q.narration</MudText>
+                                            <MudText Typo="Typo.caption"><strong>Látvány: </strong>@q.visuals</MudText>
+                                        </MudExpansionPanel>
+                                    }
+                                </MudExpansionPanels>
+
+                                <MudText Align="Align.Left" Typo="Typo.h5" Class="card-subtitle mb-5">
+                                    Zenei aláfestés
+                                </MudText>
+
+                                <MudPaper Class="movie-list" Elevation="0">
+                                    <MudText Typo="Typo.caption"><strong>Hangulat: </strong>@Course.CourseAiResponse.music.mood</MudText>
+                                    <MudText Typo="Typo.caption"><strong>Stílus: </strong>@Course.CourseAiResponse.music.style</MudText>
+                                    <MudText Typo="Typo.caption"><strong>Tempó: </strong>@Course.CourseAiResponse.music.tempo</MudText>
+                                </MudPaper>
+
+                                <MudDivider Class="my-2" />
+
+                                <MudText Align="Align.Left" Typo="Typo.h3" Class="card-title card-section-title mt-5" Color="Color.Secondary">
+                                    Kvíz tartalom
+                                </MudText>
+
+                                <MudExpansionPanels Elevation="0">
+                                    @foreach (var q in Course.CourseAiResponse.quiz)
+                                    {
+                                        <MudExpansionPanel Text="@q.question">
+                                            @foreach (var a in q.answers)
+                                            {
+                                                <MudText Typo="Typo.caption" Color="@(a.correct ? Color.Success : Color.Inherit)">@a.text</MudText>
+                                            }
+                                        </MudExpansionPanel>
+                                    }
+                                </MudExpansionPanels>
+
+                                <MudButton Class="mt-5 mb-5 card-button" Variant="Variant.Filled" Color="Color.Primary" DropShadow="true" OnClick="Save" Disabled="@isGenerating">
+                                    @(isGenerating ? "Generálás folyamatban..." : "Mentés")
+                                </MudButton>
+
+                            </MudCardContent>
+                        </MudCard>
+
+                    </BlazorAnimate.Animate>
+
+                </MudTabPanel>
+
+            </MudTabs>
+
+        </MudPaper>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="Cancel">Bezárás</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public MainLayout MainLayout { get; set; } = default!;
+
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public CourseModel Course { get; set; } = new();
+
+    private int activePanelIndex = 0;
+
+    private bool isGenerating = false;
+    private bool dialogLoaded = false;
+
+    private static long maxFileSize = 52428800; // 50 MB
+    private static int maxVideoWidth = 1280;
+    private static int maxVideoHeight = 720;
+
+    private int progressPercentage = 0;
+
+    private bool htmlEdit = false;
+
+    private bool mediaEdit = false;
+
+    /// <summary>
+    /// PAGE LOAD
+    /// </summary>
+    #region PAGE LOAD
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            activePanelIndex = Course.CourseId == 0 ? 0 : 1; // új = generálás, meglévő = módosítás
+
+            StateHasChanged();
+        }
+        await base.OnAfterRenderAsync(firstRender);
+    }
+    #endregion
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Generate()
+    {
+        if (string.IsNullOrWhiteSpace(Course.CourseAiRequest.Topic) || Course.CourseAiRequest.Duration < 30)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, "A téma és az időtartam megadása kötelező!", MainLayout.pageWidth);
+            return;
+        }
+
+        isGenerating = true;
+        StateHasChanged();
+
+        if (Course.CourseId == 0)
+        {
+            // Új kurzus: AI generálásból
+            var addRes = await trainingService.AddCourse(Course);
+            if (!addRes.Success)
+            {
+                snackbarService.ShowSnackbar(Severity.Error, addRes.ErrorMessage, MainLayout.pageWidth);
+                return;
+            }
+        }
+        else
+        {
+            // Meglévő kurzus: módosítás
+            Course.CourseAiResponse = new CourseAiResponseModel(); // előző AI válasz törlése
+            Course.CourseAiResponseJson = string.Empty;
+            Course.CourseDescription = string.Empty;
+            Course.CourseTitle = string.Empty;
+            Course.CourseDB = string.Empty;
+            Course.CourseMedia = string.Empty;
+            Course.CourseMediaText = string.Empty;
+            Course.CourseFile = string.Empty;
+            Course.CourseFileText = string.Empty;
+
+            var modRes = await trainingService.ModifyCourse(Course);
+            if (!modRes.Success)
+            {
+                snackbarService.ShowSnackbar(Severity.Error, modRes.ErrorMessage, MainLayout.pageWidth);
+                return;
+            }
+        }
+
+        snackbarService.ShowSnackbar(Severity.Success, "A kurzus generálása megkezdődött! Térjen vissza később a megtekintéséhez!", MainLayout.pageWidth);
+        MudDialog.Close(DialogResult.Ok(true));
+
+        isGenerating = false;
+        StateHasChanged();
+    }
+
+    private async Task OpenHtmlEditor()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraLarge, FullWidth = true, CloseOnEscapeKey = true };
+        var parameters = new DialogParameters
+        {
+            ["InitialHtml"] = Course.CourseFile,
+            ["ApiBaseUrl"] = configuration["apiUrl"]
+        };
+
+        var dialog = await dialogService.ShowAsync<HtmlEditorDialog>("HTML szerkesztő", parameters, options);
+        DialogResult? dialogResult = await dialog.Result;
+        if (dialogResult is not null && !dialogResult.Canceled && dialogResult.Data is string html)
+        {
+            htmlEdit = true;
+            Course.CourseFile = html;
+            Course.CourseFileText = string.Empty;
+            StateHasChanged();
+        }
+    }
+
+    private async Task UploadVideo(InputFileChangeEventArgs e)
+    {
+        isGenerating = true;
+        dialogLoaded = true;
+        //StateHasChanged();
+
+        try
+        {
+            var ct = e.File.ContentType;
+
+            if (ct.StartsWith("video/mp4"))
+            {
+                if (e.File.Size >= maxFileSize)
+                {
+                    snackbarService.ShowSnackbar(Severity.Warning, "A fájl legfeljebb 50 MB lehet!", MainLayout.pageWidth);
+                    dialogLoaded = false; 
+                    StateHasChanged(); 
+                    return;
+                }
+
+                using var ms = new MemoryStream();
+                await e.File.OpenReadStream(maxAllowedSize: maxFileSize).CopyToAsync(ms);
+                var bytes = ms.ToArray();
+
+                // opcionális: felbontás ellenőrzés (JS függvényed szerint)
+                var dims = await jsRuntime.InvokeAsync<VideoDimensions>("getVideoDimensions", bytes);
+                if (dims.Width > maxVideoWidth || dims.Height > maxVideoHeight)
+                {
+                    snackbarService.ShowSnackbar(Severity.Error, $"A videó meghaladja a {maxVideoWidth}x{maxVideoHeight}px méretet!", MainLayout.pageWidth);
+                    snackbarService.ShowSnackbar(Severity.Error, $"A videó átméretezése: https://online-video-cutter.com/resize-video");
+
+                    isGenerating = false;
+                    dialogLoaded = false; 
+                    StateHasChanged(); 
+                    return;
+                }
+
+                mediaEdit = true;
+                Course.CourseMedia = $"data:video/mp4;base64,{Convert.ToBase64String(bytes)}";
+                try
+                {
+                    var duration = await jsRuntime.InvokeAsync<double>("getMediaDurationFromBytes", bytes, ct);
+                    Course.CourseMediaDuration = (int)Math.Round(duration);
+                }
+                catch (Exception ex)
+                {
+                    snackbarService.ShowSnackbar(Severity.Error, $"Hiba a videó hossz lekérésekor: {ex.Message}", MainLayout.pageWidth);
+                }
+            }
+            else
+            {
+                snackbarService.ShowSnackbar(Severity.Error, "Érvénytelen fájltípus! Kizárólag MP4 engedélyezett.", MainLayout.pageWidth);
+            }
+        }
+        catch (Exception ex)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba a feltöltés során: {ex.Message}", MainLayout.pageWidth);
+        }
+
+        isGenerating = false;
+        dialogLoaded = false;
+        StateHasChanged();
+    }
+
+    private async Task Save()
+    {
+        if (Course.CourseId > 0)
+        {
+            isGenerating = true;
+            StateHasChanged();
+
+            // Meglévő kurzus: módosítás
+            if (htmlEdit)
+            {
+                Course.CourseDB = string.Empty;
+                Course.CourseFileText = string.Empty;
+                htmlEdit = false;
+            }
+
+            if (mediaEdit)
+            {
+                Course.CourseDB = string.Empty;
+                Course.CourseMediaText = string.Empty;
+                mediaEdit = false;
+            }
+
+            if (Course.CourseMedia.StartsWith("data:"))
+            {
+                // Fájl neve
+                string fileName = DateTime.Now.ToString("yyyyMMddHHmmssfff") + ".mp4";
+                // Base64 kódolt fájl átalakítás byte vektorrá
+                string base64Data = Course.CourseMedia.Split(',')[1]; // Levágja a MIME típust
+                byte[] fileBytes = Convert.FromBase64String(base64Data);
+                // Fájl feltöltése darabokban
+                ResultModel resultFile = await UploadTrainingFileInChunks(fileBytes, fileName);
+                if (resultFile.Success)
+                {
+                    Course.CourseMedia = $"media/{fileName}";
+                    Course.CourseMediaText = String.Empty;
+                }
+                else
+                {
+                    snackbarService.ShowSnackbar(Severity.Error, resultFile.ErrorMessage, MainLayout.pageWidth);
+                }
+            }
+
+            var modRes = await trainingService.ModifyCourse(Course);
+            if (!modRes.Success)
+            {
+                snackbarService.ShowSnackbar(Severity.Error, modRes.ErrorMessage, MainLayout.pageWidth);
+                return;
+            }
+
+            snackbarService.ShowSnackbar(Severity.Success, "Kurzus módosítva!", MainLayout.pageWidth);
+            MudDialog.Close(DialogResult.Ok(true));
+
+            isGenerating = false;
+            StateHasChanged();
+        }
+    }
+
+    private class VideoDimensions { public int Width { get; set; } public int Height { get; set; } }
+
+    /// <summary>
+    /// OTHER FUNCTION
+    /// </summary>
+    #region OTHER FUNCTION
+    private async Task<ResultModel> UploadTrainingFileInChunks(byte[] fileBytes, string fileName)
+    {
+        ResultModel resultFile = new ResultModel();
+        progressPercentage = 0;
+        StateHasChanged(); // Frissíti az UI-t a feltöltési előrehaladással
+
+        const int chunkSize = 1024 * 1024; // 1 MB
+        var buffer = new byte[chunkSize];
+        long uploadedBytes = 0;
+        long totalBytes = fileBytes.Length; // Teljes fájlméret
+
+        using (var stream = new MemoryStream(fileBytes))
+        {
+            int bytesRead;
+            while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            {
+                var chunk = new byte[bytesRead];
+                Array.Copy(buffer, chunk, bytesRead);
+
+                // Feltöltés
+                resultFile = await trainingService.UploadTrainingFileChunk(chunk, uploadedBytes, fileName);
+
+                // Feltöltési előrehaladás
+                uploadedBytes += bytesRead;
+
+                // Progressz százalék számítása
+                progressPercentage = (int)((double)uploadedBytes / totalBytes * 100);
+                StateHasChanged(); // Frissíti az UI-t a feltöltési előrehaladással
+            }
+        }
+
+        progressPercentage = 0;
+        StateHasChanged(); // Frissíti az UI-t a feltöltési előrehaladással
+        return resultFile;
+    }
+    #endregion
+}
+

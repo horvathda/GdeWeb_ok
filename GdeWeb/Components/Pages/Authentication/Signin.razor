@@ -1,0 +1,381 @@
+﻿@page "/signin"
+@attribute [AllowAnonymous]
+
+@using GdeWeb.Components.Layout
+@using GdeWeb.Dialogs
+@using GdeWeb.Services
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Authorization
+@using GdeWebModels
+@using GdeWeb.Interfaces
+@using System.Text.RegularExpressions
+@using Microsoft.AspNetCore.WebUtilities
+
+@inject IAuthService authService
+@inject IDialogService dialogService
+@inject ISnackbarService snackbarService
+@inject ILocalStorageService localStorage
+@inject NavigationManager navigationManager
+@inject AuthenticationStateProvider authenticationStateProvider
+@inject NavigationManager navigationManager
+@inject IConfiguration Configuration
+
+<style>
+    .footer {
+        display:none;
+    }
+
+    /* A MudItem legyen "vágó" keret */
+    .image-wrap {
+        position: relative;
+        /* VÁLASSZ EGYET a két magasság-koncepció közül: */
+        /* 1) Töltse ki a viewport magasságát: */
+        /* height: 100vh; */
+        /* 2) VAGY: Töltse ki a szülő eleme magasságát:
+             height: 100%;
+             (ehhez a szülőknek is meg kell adni a magasságot, pl. a MudGrid-nek/fő konténernek) */
+
+        overflow: hidden; /* jobbra (és minden irányba) levág */
+    }
+
+    /* A kép balra rögzítve, magasságban mindig kitölt */
+    .image-fill-left {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%; /* mindig kitölti a konténer magasságát */
+        width: auto; /* arányt tart, szélesség nőhet a konténeren túl */
+        display: block; /* inline gap-ek elkerülése */
+    }
+
+    /* A kép középre igazítva, magasságot kitöltve */
+    .image-fill-center {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        height: 100%;
+        min-width: 100%;
+        width: auto;
+        transform: translate(-50%, -50%); /* középre helyezés */
+        display: block;
+    }
+
+    .mud-card-content {
+        align-content: center;
+    }
+</style>
+
+<PageTitle>Bejelentkezés</PageTitle>
+
+<div class="main-page container-center">
+    @if (!PageLoading)
+    {
+        <!-- BODY -->
+        <MudGrid Justify="Justify.SpaceEvenly" Class="pa-0 h-100" Spacing="0">
+
+            <MudItem xs="0" sm="0" md="6" lg="8" xl="9" xxl="10" Style="align-content: center; text-align: center;" Class="image-wrap">
+
+                <BlazorAnimate.Animate Animation="Animations.Fade" Delay="TimeSpan.FromSeconds(MainLayout.animationDelay)" Duration="TimeSpan.FromSeconds(MainLayout.animationDuration)" style="height: 100%">
+                    <MudImage Src="img/auth_ai_large.jpg" Alt="AI" Elevation="25" Class="image-fill-center" />
+                </BlazorAnimate.Animate>
+
+            </MudItem>
+
+            <MudItem xs="12" sm="12" md="6" lg="4" xl="3" xxl="2" Style="align-content: center; text-align: center;">
+
+                <BlazorAnimate.Animate Animation="Animations.ZoomIn" Delay="TimeSpan.FromSeconds(MainLayout.animationDelay)" Duration="TimeSpan.FromSeconds(MainLayout.animationDuration)" style="height: 100%">
+
+                    <MudCard Elevation="0" Class="card-max h-100">
+                        <MudCardContent>
+
+                            <MudForm Model="@model" @ref="form" @bind-Errors="@errors">
+
+                                <MudText Align="Align.Left" Typo="Typo.h1" Class="card-title" Color="Color.Secondary">
+                                    Bejelentkezés
+                                </MudText>
+
+                                <MudText Align="Align.Left" Typo="Typo.h5" Class="card-subtitle" Style="margin-bottom: 40px;">
+                                    Jelentkezzen be, és ismerje meg az adatvédelmet!
+                                </MudText>
+
+                                <MudTextField T="string" Class="card-input" @bind-Value="@model.Email" Label="Email" Variant="Variant.Text"
+                                              Required="@required" RequiredError="Az e-mail cím megadása kötelező." OnlyValidateIfDirty="true" ErrorText=""
+                                              Validation="@(new EmailAddressAttribute() { ErrorMessage = "Az e-mail cím formátuma érvénytelen." })" Disabled="isLoading"></MudTextField>
+
+                                <MudTextField T="string" Class="card-input" @bind-Value="@model.Password" Label="Jelszó" Variant="Variant.Text"
+                                              Required="@required" InputType="@inputPasswordType" Adornment="Adornment.End" AdornmentColor="Color.Primary"
+                                              AdornmentIcon="@(inputPasswordType == InputType.Password ? @Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                                              OnAdornmentClick="@(() => ChangeInputPasswordType())" OnlyValidateIfDirty="true" ErrorText=""
+                                              Validation="@(new Func<string, string>(PasswordMatch))" Disabled="isLoading"></MudTextField>
+
+                                <MudButton Class="card-button" Variant="Variant.Filled" Color="Color.Primary" DropShadow="true" OnClick="@Submits" Style="margin-top: 40px;" Disabled="isLoading">Bejelentkezés</MudButton>
+
+                                <MudButton Class="card-button" Variant="Variant.Outlined" Color="Color.Error" DropShadow="true" OnClick="@LoginWithGoogle" Style="margin-top: 20px;" Disabled="isLoading">Bejelentkezés Google fiókkal</MudButton>
+
+                                <MudText Align="Align.Left" Typo="Typo.body1" Class="card-links">
+                                    Még nincs fiókja?
+                                    <MudLink OnClick="@(() => MainLayout.GoTo("signup"))" Underline="Underline.Always" Color="Color.Primary" Typo="Typo.body1" Class="card-link">Kattintson ide</MudLink>
+                                </MudText>
+
+                                <MudText Align="Align.Left" Typo="Typo.body1" Class="card-links">
+                                    Elfelejtette jelszavát?
+                                    <MudLink OnClick="@(() => MainLayout.GoTo("forgot-password"))" Underline="Underline.Always" Color="Color.Primary" Typo="Typo.body1" Class="card-link">Kattintson ide</MudLink>
+                                </MudText>
+
+                                <MudText Align="Align.Left" Typo="Typo.body1" Class="card-links">
+                                    Szeretné letölteni a mobilalkalmazást?
+                                    <MudLink OnClick="@(() => OpenUpdateDialog())" Underline="Underline.Always" Color="Color.Primary" Typo="Typo.body1" Class="card-link">Kattintson ide</MudLink>
+                                </MudText>
+
+                                <MudText Align="Align.Left" Typo="Typo.body1" Class="card-links">
+                                    A regisztrációval elfogadja a
+                                    <MudLink OnClick="@(() => MainLayout.GoTo("privacy"))" Underline="Underline.Always" Color="Color.Primary" Typo="Typo.body1" Class="card-link">Felhasználási feltételeket</MudLink>
+                                </MudText>
+
+                            </MudForm>
+
+                        </MudCardContent>
+                    </MudCard>
+
+                </BlazorAnimate.Animate>
+
+            </MudItem>
+
+        </MudGrid>
+    }
+    else
+    {
+        <!-- LOADING -->
+        <div class="loading-center">
+            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+        </div>
+    }
+</div>
+
+@code {
+
+    //Google Auth
+    private string ApiBaseUrl => Configuration["apiUrl"] ?? "https://localhost:7046";
+
+    private void LoginWithGoogle()
+    {
+        var url = $"{ApiBaseUrl}/api/Auth/LoginGoogle";
+        navigationManager.NavigateTo(url, forceLoad: true);
+    }
+
+    [CascadingParameter]
+    public MainLayout MainLayout { get; set; } = default!;
+
+    [Parameter, SupplyParameterFromQuery(Name = "confirmation")]
+    public bool? Confirmation { get; set; }
+    private bool _showConfirmation;
+
+    // LOADING PARAMETERS
+    private bool PageLoading = true; // true
+
+    // IS LOADING
+    private bool isLoading = false;
+
+    // FORM
+    private LoginModel model = new LoginModel();
+    private string[] errors = { };
+    private MudForm form = new MudForm();
+    private bool required { get; set; } = false;
+    private InputType inputPasswordType { get; set; } = InputType.Password;
+
+
+    /// <summary>
+    /// PAGE LOAD
+    /// </summary>
+    #region PAGE LOAD
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        PageLoading = true;
+        try
+        {
+            if (Confirmation is not null && Confirmation == true)
+            {
+                // snackbar-t csak render után mutassuk
+                _showConfirmation = true;
+                return;
+            }
+        }
+        finally
+        {
+            PageLoading = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (_showConfirmation)
+            {
+                _showConfirmation = false;
+                snackbarService.ShowSnackbar(
+                    Severity.Success,
+                    "Az e-mail cím megerősítve!<br/>Jelentkezzen be!",
+                    MainLayout.pageWidth
+                );
+            }
+            else
+            {
+                // NINCS confirmation param -> normál signin logika
+                await MainLayout.RefreshLoggedUser();
+                if (MainLayout.loggedUser.Id > 0)
+                {
+                    await MainLayout.GoTo("dashboard");
+                }
+                else
+                {
+                    await((CustomAuthentication)authenticationStateProvider).MarkUserAsLoggedOut();
+                    await MainLayout.RefreshLoggedUser();
+                }
+            }
+        }
+    }
+    #endregion
+
+
+    /// <summary>
+    /// BUTTON FUNCTIONS
+    /// </summary>
+    #region BUTTON FUNCTIONS
+    private async Task OpenUpdateDialog()
+    {
+        DialogOptions options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            FullWidth = true,
+            MaxWidth = MaxWidth.ExtraSmall,
+            BackdropClick = false,
+            NoHeader = true,
+            CloseButton = true
+        };
+
+        DialogParameters parameters = new DialogParameters
+        {
+            ["isUpdateAvailable"] = false,
+            ["showUpdateAvailable"] = false
+        };
+
+        var dialog = await dialogService.ShowAsync<UpdateDialog>("Update Dialog", parameters, options);
+        DialogResult? dialogResult = await dialog.Result;
+        if (dialogResult is not null && !dialogResult.Canceled)
+        {
+
+        }
+    }
+
+    private async Task Submits()
+    {
+        try
+        {
+            isLoading = true;                // kurzor be
+            StateHasChanged();
+
+            // Required validation
+            required = true;
+            StateHasChanged();
+            await Task.Delay(100);
+            // run the standard Validation
+            await form.Validate();
+            // Fake a database async call to check if the user exists
+            await Task.Delay(100);
+            //Just for Testing trip validation
+            if (form.IsValid)
+            {
+                LoginResultModel loginUser = await authService.Login(new LoginModel { Email = model.Email, Password = model.Password });
+                if (loginUser.Result != null)
+                {
+                    if (loginUser.Active && loginUser.Result.Success)
+                    {
+                        // Ha van egy korábbi bejelentkezés, akkor előbb kijelentkezik
+                        await ((CustomAuthentication)authenticationStateProvider).MarkUserAsLoggedOut();
+                        await MainLayout.RefreshLoggedUser();
+
+                        snackbarService.ShowSnackbar(Severity.Success, "Minden mező megfelelő! Bejelentkezés.", MainLayout.pageWidth);
+                        await ((CustomAuthentication)authenticationStateProvider).MarkUserAsAuthenticated(loginUser);
+                        await MainLayout.RefreshLoggedUser();
+                        navigationManager.NavigateTo("/dashboard");
+                    }
+                    else
+                    {
+                        snackbarService.ShowSnackbar(Severity.Error, loginUser.Result.ErrorMessage, MainLayout.pageWidth);
+                        model.Password = string.Empty;
+                        StateHasChanged();
+                    }
+                }
+                else
+                {
+                    snackbarService.ShowSnackbar(Severity.Error, "Hiba történt a lekérdezés során!", MainLayout.pageWidth);
+                }
+            }
+            else
+            {
+                foreach (String error in errors)
+                {
+                    if (!string.IsNullOrEmpty(error))
+                    {
+                        snackbarService.ShowSnackbar(Severity.Error, error, MainLayout.pageWidth);
+                    }
+                }
+                await Task.Delay(1000); // Várakozás 1 másodpercig
+                form.ResetValidation();
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt a művelet során: {ex.Message.ToString()}", MainLayout.pageWidth);
+        }
+        finally
+        {
+            isLoading = false;              // kurzor ki
+            StateHasChanged();
+        }
+    }
+    #endregion
+
+
+    /// <summary>
+    /// VALIDATION FUNCTIONS
+    /// </summary>
+    #region VALIDATION FUNCTIONS
+    private string PasswordMatch(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "A jelszó megadása kötelező.";
+        if (value.Length < 8 || value.Length > 20)
+            return "A jelszónak 8 és 20 karakter közöttinek kell lennie.";
+        if (!Regex.IsMatch(value, @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,20}$"))
+            return @"A jelszónak meg kell felelnie a következő követelményeknek!<br/>
+                <ul>
+                    <li>A jelszónak 8 és 20 karakter közötti hosszúságúnak kell lennie</li>
+                    <li>Tartalmaznia kell legalább egy számjegyet</li>
+                    <li>Tartalmaznia kell legalább egy nagybetűt</li>
+                    <li>Tartalmaznia kell legalább egy kisbetűt</li>
+                    <li>Tartalmaznia kell legalább egy speciális karaktert (pl: #,.,@, stb)</li>
+                </ul>";
+        return String.Empty;
+    }
+
+    private async Task ChangeInputPasswordType()
+    {
+        await Task.Delay(10);
+        if (inputPasswordType == InputType.Password)
+            inputPasswordType = InputType.Text;
+        else
+            inputPasswordType = InputType.Password;
+    }
+    #endregion
+}

@@ -1,0 +1,50 @@
+﻿@using GdeWeb.Components.Layout
+@using GdeWeb.Interfaces
+@using GdeWebModels
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+
+<style>
+    .mud-dialog .mud-dialog-content {
+        overflow: hidden !important;
+        text-align: center;
+    }
+</style>
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer>
+
+            <MudText>@message</MudText>
+
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Cancel" Class="card-button">Mégsem</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Ok" Class="card-button">Rendben</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public String message { get; set; } = default!;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+
+    private void Ok()
+    {
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

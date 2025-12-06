@@ -1,0 +1,84 @@
+﻿@using GdeWeb.Components.Layout
+@using GdeWeb.Interfaces
+@using GdeWebModels
+@using MudBlazor
+
+@inject IUserService userService
+
+<style>
+    .mud-dialog .mud-dialog-content {
+        overflow: hidden !important;
+    }
+</style>
+
+<MudDialog Class="glass">
+    <DialogContent>
+        @if(Active)
+        {
+            <MudText>Biztosan aktiválni szeretné a felhasználót?</MudText>
+        }
+        else
+        {
+            <MudText>Biztosan deaktiválni szeretné a felhasználót?</MudText>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Cancel" Class="card-button">Mégsem</MudButton>
+        @if(Active)
+        {
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Class="card-button">Aktiválás</MudButton>
+        }
+        else
+        {
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Class="card-button">Deaktiválás</MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public MainLayout MainLayout { get; set; } = default!;
+
+    [CascadingParameter]
+    public IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public UserModel? User { get; set; }
+
+    [Parameter]
+    public bool Active { get; set; }
+
+
+    /// <summary>
+    /// BUTTON FUNCTIONS
+    /// </summary>
+    #region BUTTON FUNCTIONS
+    public async Task Submit()
+    {
+        if (User is null)
+            return;
+
+        if (string.IsNullOrEmpty(User.Password))
+        {
+            User.Password = "";
+        }
+
+        if (string.IsNullOrEmpty(User.Email))
+        {
+            User.Email = "";
+        }
+
+        User.Active = Active;
+        User.Roles = new List<RoleModel>();
+        User.Result = new ResultModel() { Success = true, ErrorMessage = "" };
+
+        ResultModel result = await userService.SetUserState(User);
+        MudDialog.Close(DialogResult.Ok(result));
+    }
+
+    public void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+    #endregion
+}

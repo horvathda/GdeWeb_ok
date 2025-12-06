@@ -1,0 +1,288 @@
+﻿@page "/contact"
+
+@using System.ComponentModel.DataAnnotations
+@using System.Text.RegularExpressions
+@using GdeWeb.Components.Layout
+@using GdeWeb.Interfaces
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.WebUtilities
+@using GdeWebModels
+
+@inject IDialogService dialogService
+@inject ISnackbarService snackbarService
+@inject ILocalStorageService localStorage
+@inject NavigationManager navigationManager
+@inject AuthenticationStateProvider authenticationStateProvider
+@inject IMessageService messageService
+
+<style>
+    .footer { display: none; }
+
+    .image-wrap {
+        position: relative;
+        overflow: hidden;
+    }
+    .image-fill-center {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        height: 100%;
+        min-width: 100%;
+        width: auto;
+        transform: translate(-50%, -50%);
+        display: block;
+    }
+    .mud-card-content { align-content: center; }
+</style>
+
+<PageTitle>Kapcsolat</PageTitle>
+
+<div class="main-page container-center">
+    @if (!PageLoading)
+    {
+        <!-- BODY -->
+        <MudGrid Justify="Justify.SpaceEvenly" Class="pa-0 h-100" Spacing="0">
+
+            <MudItem xs="0" sm="0" md="6" lg="8" xl="9" xxl="10" Style="align-content: center; text-align: center;" Class="image-wrap">
+                <BlazorAnimate.Animate Animation="Animations.Fade" Delay="TimeSpan.FromSeconds(MainLayout.animationDelay)" Duration="TimeSpan.FromSeconds(MainLayout.animationDuration)" style="height: 100%">
+                    <MudImage Src="img/contact_large.jpg" Alt="Kapcsolat" Elevation="25" Class="image-fill-center" />
+                </BlazorAnimate.Animate>
+            </MudItem>
+
+            <MudItem xs="12" sm="12" md="6" lg="4" xl="3" xxl="2" Style="align-content: center; text-align: center;">
+                <BlazorAnimate.Animate Animation="Animations.ZoomIn" Delay="TimeSpan.FromSeconds(MainLayout.animationDelay)" Duration="TimeSpan.FromSeconds(MainLayout.animationDuration)" style="height: 100%">
+
+                    <MudCard Elevation="0" Class="card-max h-100">
+                        <MudCardContent>
+
+                            <MudForm Model="@model" @ref="form" @bind-Errors="@errors">
+                                <MudText Align="Align.Left" Typo="Typo.h1" Class="card-title" Color="Color.Secondary">
+                                    Üzenetküldés
+                                </MudText>
+
+                                <MudText Align="Align.Left" Typo="Typo.h5" Class="card-subtitle" Style="margin-bottom: 40px;">
+                                    Írjon nekünk, és hamarosan felvesszük Önnel a kapcsolatot!
+                                </MudText>
+
+                                <MudTextField T="string"
+                                              Class="card-input"
+                                              @bind-Value="model.Name"
+                                              Label="Név"
+                                              Variant="Variant.Text"
+                                              Required="@required"
+                                              RequiredError="A név megadása kötelező."
+                                              OnlyValidateIfDirty="true"
+                                              Disabled="isLoading" />
+
+                                <MudTextField T="string"
+                                              Class="card-input"
+                                              @bind-Value="model.Phone"
+                                              Label="Telefonszám"
+                                              Variant="Variant.Text"
+                                              Required="@required"
+                                              RequiredError="A telefonszám megadása kötelező."
+                                              OnlyValidateIfDirty="true"
+                                              Validation="@(new Func<string, string>(PhoneValidate))"
+                                              Disabled="isLoading" />
+
+                                <MudTextField T="string"
+                                              Class="card-input"
+                                              @bind-Value="model.FromEmail"
+                                              Label="Email"
+                                              Variant="Variant.Text"
+                                              Required="@required"
+                                              RequiredError="Az e-mail cím megadása kötelező."
+                                              OnlyValidateIfDirty="true"
+                                              Validation="@(new EmailAddressAttribute() { ErrorMessage = "Az e-mail cím formátuma érvénytelen." })"
+                                              Disabled="isLoading" />
+
+                                <MudTextField T="string"
+                                              Class="card-input"
+                                              @bind-Value="model.Subject"
+                                              Label="Tárgy"
+                                              Variant="Variant.Text"
+                                              Required="@required"
+                                              RequiredError="A tárgy megadása kötelező."
+                                              OnlyValidateIfDirty="true"
+                                              Validation="@(new Func<string, string>(SubjectValidate))"
+                                              Disabled="isLoading" />
+
+                                <MudTextField T="string"
+                                              Class="card-input"
+                                              @bind-Value="model.Message"
+                                              Label="Üzenet"
+                                              Variant="Variant.Text"
+                                              Lines="6"
+                                              Required="@required"
+                                              RequiredError="Az üzenet megadása kötelező."
+                                              OnlyValidateIfDirty="true"
+                                              Validation="@(new Func<string, string>(MessageValidate))"
+                                              Disabled="isLoading" />
+
+                                <MudButton Class="card-button"
+                                           Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           DropShadow="true"
+                                           OnClick="@Submit"
+                                           Style="margin-top: 40px;"
+                                           Disabled="isLoading">
+                                    Üzenet küldése
+                                </MudButton>
+
+                            </MudForm>
+
+                        </MudCardContent>
+                    </MudCard>
+
+                </BlazorAnimate.Animate>
+            </MudItem>
+
+        </MudGrid>
+    }
+    else
+    {
+        <!-- LOADING -->
+        <div class="loading-center">
+            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+        </div>
+    }
+</div>
+
+
+@code {
+    [CascadingParameter]
+    public MainLayout MainLayout { get; set; } = default!;
+
+    private bool PageLoading = true;
+    private bool isLoading = false;
+
+    private EmailModel model = new();
+    private string[] errors = { };
+    private MudForm form = new();
+    private bool required { get; set; } = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await Task.Delay(1);
+            base.OnInitialized();
+        }
+        catch (Exception ex)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt a betöltés során: {ex.Message}", MainLayout.pageWidth);
+        }
+
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.Delay(500);
+            PageLoading = false;
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task Submit()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            required = true;
+            StateHasChanged();
+            await Task.Delay(100);
+
+            await form.Validate();
+            await Task.Delay(100);
+
+            if (form.IsValid)
+            {
+                model.ToEmail = ""; // Üresen hagyva, a backend kezeli
+                // Létrehozási dátum beállítása
+                model.CreatingDate = DateTime.UtcNow;
+
+                // Küldés a backend felé
+                var result = await messageService.AddContactMail(model);
+
+                if (result.Success)
+                {
+                    snackbarService.ShowSnackbar(Severity.Success, "Köszönjük! Üzenetét sikeresen elküldtük.", MainLayout.pageWidth);
+                    // Űrlap ürítése
+                    model.Name = string.Empty;
+                    model.Phone = string.Empty;
+                    model.FromEmail = string.Empty;
+                    model.Subject = string.Empty;
+                    model.Message = string.Empty;
+                    await Task.Delay(50);
+                    form.ResetValidation();
+                    StateHasChanged();
+                }
+                else
+                {
+                    var err = result?.ErrorMessage ?? "Ismeretlen hiba történt az üzenet küldése közben.";
+                    snackbarService.ShowSnackbar(Severity.Error, err, MainLayout.pageWidth);
+                }
+            }
+            else
+            {
+                foreach (var error in errors)
+                {
+                    if (!string.IsNullOrEmpty(error))
+                        snackbarService.ShowSnackbar(Severity.Error, error, MainLayout.pageWidth);
+                }
+                await Task.Delay(500);
+                form.ResetValidation();
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt a művelet során: {ex.Message}", MainLayout.pageWidth);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    // Validációk
+    private string PhoneValidate(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "A telefonszám megadása kötelező.";
+
+        // Egyszerű, nem túl szigorú magyar/EU kompatibilis minta (+36, 06, szóközök, kötőjelek engedélyezése)
+        var cleaned = value.Replace(" ", "").Replace("-", "");
+        var pattern = @"^(\+?\d{7,15})$";
+        if (!Regex.IsMatch(cleaned, pattern))
+            return "A telefonszám formátuma érvénytelen.";
+
+        return string.Empty;
+    }
+
+    private string SubjectValidate(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "A tárgy megadása kötelező.";
+        if (value.Length < 3 || value.Length > 120)
+            return "A tárgy hossza 3 és 120 karakter között legyen.";
+        return string.Empty;
+    }
+
+    private string MessageValidate(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "Az üzenet megadása kötelező.";
+        if (value.Length < 10)
+            return "Kérjük, részletezze bővebben az üzenetet (legalább 10 karakter).";
+        return string.Empty;
+    }
+}
+

@@ -1,0 +1,158 @@
+﻿.question-card {
+    background: rgba(0,195,137,.78); /* üveges hatás – fehér + blur, nem színkeverés */
+    background: color-mix(in oklab, var(--mud-palette-secondary) 12%, #ffffff);
+}
+
+.answer-card {
+    transition: transform .12s ease, box-shadow .12s ease;
+    cursor: pointer;
+    user-select: none;
+    min-height : 60px;
+    align-content: center;
+}
+
+    .answer-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .answer-card.shake {
+        animation: shake .4s cubic-bezier(.36,.07,.19,.97) both;
+    }
+
+@keyframes shake {
+    10%, 90% {
+        transform: translateX(-2px);
+    }
+
+    20%, 80% {
+        transform: translateX(4px);
+    }
+
+    30%, 50%, 70% {
+        transform: translateX(-6px);
+    }
+
+    40%, 60% {
+        transform: translateX(6px);
+    }
+}
+
+/* Egyszerű animáció a rossz válasz megrázására */
+/*.answer-card.shake {
+    animation: qc-shake .45s;
+}
+
+@keyframes qc-shake {
+    0% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-6px);
+    }
+
+    50% {
+        transform: translateX(6px);
+    }
+
+    75% {
+        transform: translateX(-4px);
+    }
+
+    100% {
+        transform: translateX(0);
+    }
+}*/
+
+/* --- Hibás válasz animáció (rázás) --- */
+/*@keyframes shakeX {
+    0% {
+        transform: translateX(0);
+    }
+
+    20% {
+        transform: translateX(-6px);
+    }
+
+    40% {
+        transform: translateX(6px);
+    }
+
+    60% {
+        transform: translateX(-4px);
+    }
+
+    80% {
+        transform: translateX(4px);
+    }
+
+    100% {
+        transform: translateX(0);
+    }
+}
+
+.shake {
+    animation: shakeX .45s ease-in-out;
+}*/
+
+/* progress bar */
+.duo-progress {
+    height: 10px;
+    border-radius: 999px;
+    background: rgb(225,225,225);
+    overflow: hidden;
+}
+
+.duo-progress__fill {
+    height: 100%;
+    background: var(--mud-palette-secondary);
+    border-radius: 999px;
+    width: 0%;
+    transition: width .4s ease;
+}
+
+/* === QUIZCARD – mobil finomítások === */
+.quizcard-wrapper .answer-card {
+    font-size: 16px !important;
+}
+
+
+@media (max-width: 640px) {
+    .card {
+        width: 100%;
+    }
+
+    .controls {
+        font-size: smaller;
+    }
+
+    /* válaszok egymás alatt */
+    .quizcard-wrapper .answers {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+        width: 100%;
+    }
+
+    /* kisebb animációs sáv és Lottie méret */
+    .quizcard-wrapper .quiz-anim {
+        height: 120px !important;
+        gap: 8px !important;
+    }
+
+    /* ha a LottieCard inline fix px-t kap, skálázzuk le */
+    .quizcard-wrapper .lottie {
+        transform: scale(.8);
+        transform-origin: center;
+    }
+
+    /* kompaktabb válaszkártya */
+    .quizcard-wrapper .answer-card {
+        min-height: 72px !important;
+        font-size: 12px !important;
+    }
+
+    /* kérdéskártya szöveg méret enyhén kisebb (opcionális) */
+    .quizcard-wrapper .card .mt-2 {
+        font-size: 14px !important;
+    }
+}

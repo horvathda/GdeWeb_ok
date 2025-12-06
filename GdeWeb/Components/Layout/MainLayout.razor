@@ -1,0 +1,658 @@
+﻿@using GdeWeb.Dialogs
+@using GdeWeb.Interfaces
+@using GdeWeb.Services
+@using GdeWeb.Utilities
+@using GdeWebModels
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Text
+@using Newtonsoft.Json
+
+@inherits LayoutComponentBase
+
+@implements IBrowserViewportObserver
+@implements IAsyncDisposable
+
+@inject IJSRuntime jsRuntime
+@inject HttpClient httpClient
+@inject IUserService userService
+@inject IBadgeService badgeService
+@inject IDialogService dialogService
+@inject IConfiguration configuration
+@inject ITrainingService trainingService
+@inject ISnackbarService snackbarService
+@inject NavigationManager navigationManager
+@inject ILocalStorageService localStorageService
+@inject AuthenticationStateProvider authenticationStateProvider
+
+<style>
+    .mud-alert-filled-error {
+        color: white;
+    }
+
+    .mud-tooltip {
+        background-color: black !important; /* Itt állítsd be a kívánt háttérszínt */
+        color: white !important; /* Itt állítsd be a tooltip szöveg színét */
+    }
+
+    .mud-chip.mud-chip-size-small {
+        font-size: 14px;
+    }
+
+    .mud-container--gutters {
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+
+    .menu-icon {
+        font-size: clamp(20px, 2.6vw, 28px);
+        line-height: 1;
+        color: color-mix(in oklab, var(--menu-accent) 36%, rgba(255,255,255, 0.8));
+    }
+
+    .appbar .mud-icon-root.mud-svg-icon {
+        fill: rgba(255, 255, 255, 0.5);
+    }
+
+    .button-clr {
+        color: rgba(255,255,255, 0.8);
+        border-color: rgba(255,255,255, 0.8);
+    }
+</style>
+
+<MudPopoverProvider />
+
+<CascadingValue Value="this">
+    <MudThemeProvider Theme="theme" />
+    <ErrorBoundary>
+        <ChildContent>
+            <MudDialogProvider />
+        </ChildContent>
+        <ErrorContent>
+            <ErrorComponent />
+        </ErrorContent>
+    </ErrorBoundary>
+    <MudSnackbarProvider />
+
+    <MudLayout>
+        <!-- Header -->
+        <MudAppBar Elevation="0" Dense="true" Class="py-2 appbar main_blue_bg" Style="@($"--menu-accent:{Color.Primary};")">
+            <MudText Typo="Typo.h5" Class="font-bold">@(isMobile ? "GDE Edu AI" : "GDE Edu AI – Oktató platform")</MudText>
+            <MudSpacer />
+            @if (loggedUser.Id > 0)
+            {
+                <MudAvatar Size="Size.Medium" Variant="Variant.Outlined" Style="cursor: pointer; margin-right: 4px;">
+                    <MudIcon Icon="@Icons.Material.Filled.Home" Class="menu-icon" @onclick="@(() => GoTo("/dashboard"))" />
+                </MudAvatar>
+
+                <MudAvatar Size="Size.Medium" Variant="Variant.Outlined" Style="cursor: pointer; margin-right: 4px;">
+                    <MudIcon Icon="@Icons.Material.Filled.ModelTraining" Class="menu-icon" @onclick="@(() => GoTo($"/quiz?cid=0"))" />
+                </MudAvatar>
+
+                <MudMenu>
+                    <ActivatorContent>
+                        <MudAvatar Size="Size.Medium" Variant="Variant.Outlined" Style="cursor: pointer;">
+                            <MudImage Src="img/profile.png"></MudImage>
+                        </MudAvatar>
+                    </ActivatorContent>
+                    <ChildContent>
+                        <MudMenuItem Icon="@Icons.Material.TwoTone.PersonOutline" OnClick="@(() => GoTo("/profile"))">Profil</MudMenuItem>
+                        @if (loggedUser.Roles.Any(r => r.Name == "Admin"))
+                        {
+                            <MudMenuItem Icon="@Icons.Material.TwoTone.Settings" OnClick="@(() => GoTo("/settings"))">Beállítások</MudMenuItem>
+                        }
+                        <MudMenuItem Icon="@Icons.Material.TwoTone.InstallMobile" OnClick="OpenUpdateDialog">@(isMobile ? "Frissítés" : "Letöltés")</MudMenuItem>
+                        <MudMenuItem Icon="@Icons.Material.TwoTone.ExitToApp" OnClick="Logout">Kijelentkezés</MudMenuItem>
+                    </ChildContent>
+                </MudMenu>
+            }
+            else
+            {
+                @if (isMobile && (pageWidth < pageHeight))
+                {
+                    @if (homePage)
+                    {
+                        <MudMenu>
+                            <ActivatorContent>
+                                <MudAvatar Size="Size.Medium" Variant="Variant.Outlined" Style="cursor: pointer;">
+                                    <MudIcon Icon="@Icons.Material.Filled.Input" Class="menu-icon" @onclick="@(() => GoTo("/signin"))" />
+                                </MudAvatar>
+                            </ActivatorContent>
+                        </MudMenu>
+                    }
+                    else
+                    {
+                        <MudMenu>
+                            <ActivatorContent>
+                                <MudAvatar Size="Size.Medium" Variant="Variant.Outlined" Style="cursor: pointer;">
+                                    <MudIcon Icon="@Icons.Material.Filled.Home" Class="menu-icon" @onclick="@(() => GoTo("/"))" />
+                                </MudAvatar>
+                            </ActivatorContent>
+                        </MudMenu>
+                    }
+                }
+                else
+                {
+                    @if (homePage)
+                    {
+                        <MudButton Variant="Variant.Outlined" Class="rounded-2xl button-clr" OnClick="@(() => GoTo("/signin"))">
+                            Belépés / Regisztráció
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudButton Variant="Variant.Outlined" Class="rounded-2xl button-clr" OnClick="@(() => GoTo("/"))">
+                            Kezdőoldal
+                        </MudButton>
+                    }
+                }
+            }
+        </MudAppBar>
+
+        <!-- Content -->
+        <MudMainContent Class="main-content p-0">
+            <ErrorBoundary>
+                <ChildContent>
+                    <!-- Body -->
+                    @Body
+                </ChildContent>
+                <ErrorContent>
+                    <ErrorComponent />
+                </ErrorContent>
+            </ErrorBoundary>
+        </MudMainContent>
+
+        <!-- Footer -->
+        <MudPaper Class="main_blue_bg footer" Elevation="0" Square="true">
+            <div class="footer-content">
+                <MudLink Class="m-auto" Color="Color.Dark" OnClick="@(() => GoTo("/privacy"))">Adatvédelem</MudLink>
+                <MudLink Class="m-auto" Color="Color.Dark" OnClick="@(() => GoTo("/contact"))">Kapcsolat</MudLink>
+            </div>
+            <div>@_answer</div>
+        </MudPaper>
+
+    </MudLayout>
+</CascadingValue>
+
+@code {
+    // Image upscale : https://imgupscaler.com/
+    // Image format converter: https://cloudconvert.com/
+
+    [Inject]
+    private IBrowserViewportService BrowserViewportService { get; set; } = default!;
+
+    // LOGGED USER
+    public LoginUserModel loggedUser = new LoginUserModel();
+
+    // IS MOBILE
+    public bool isMobile { get; set; } = true;
+
+    // HOME PAGE
+    private bool homePage = true;
+
+    // THEME
+    public MudTheme lightTheme = new MudTheme()
+    {
+        LayoutProperties = new LayoutProperties
+        {
+            // AppbarHeight = "0px",
+            DefaultBorderRadius = "16px"
+        },
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#0099A8", // türkiz // #127C92
+            Secondary = "#00C389", // zöld // #00C389;
+            Tertiary = "#FFD500", // sárga
+            AppbarBackground = "#FFFFFF",
+            Background = "#F9F9F9",
+            Surface = "#FFFFFF",
+            TextPrimary = "#002B36", // sötétkék-szürke
+            TextSecondary = "#004F57"
+        },
+        Typography = new Typography()
+        {
+            Default = new DefaultTypography()
+            {
+                FontFamily = new[] { "Montserrat", "Segoe UI", "Segoe UI Variable", "Arial", "sans-serif" }
+            },
+            H5 = new H5Typography()
+            {
+                FontWeight = "700",
+                LetterSpacing = ".2px",
+                FontSize = "clamp(1.4rem, 3vw + 0.4rem, 2.4rem)"
+            },
+            H4 = new H4Typography()
+            {
+                FontWeight = "600",
+                FontSize = "clamp(1.2rem, 2.5vw, 1.8rem)"
+            },
+            H3 = new H3Typography()
+            {
+                FontWeight = "600",
+                FontSize = "clamp(1rem, 2vw, 1.4rem)"
+            },
+            Body1 = new Body1Typography()
+            {
+                FontSize = "clamp(0.8rem, 1.5vw, 1rem)",
+                LineHeight = "1.6"
+            },
+            Body2 = new Body2Typography()
+            {
+                FontSize = "clamp(0.7rem, 1.0vw, 0.8rem)",
+            },
+            Caption = new CaptionTypography()
+            {
+                FontSize = "clamp(0.6rem, 0.8vw, 0.7rem)",
+            },
+            Button = new ButtonTypography()
+            {
+                TextTransform = "none",
+                FontWeight = "600",
+                FontSize = "clamp(0.8rem, 1.5vw, 1rem)"
+            }
+        }
+    };
+
+    // MAIN COLOR
+    public string clrBlue = "#3191A8";
+
+    public string appBlue = "#009FED";
+
+    public string appRed = "#DB3181";
+
+    public string appOrange = "#FFB653";
+
+    public string appGreen = "#6CE867";
+
+    public string appYellow = "#FFD853";
+
+    public string appGray = "#DEDEE4";
+
+    public string appWhite = "#F2F2F2";
+
+    // WINDOW SIZE
+    public Breakpoint pageBreakpoint;
+    public int pageWidth = 0; // Teljes oldal szélessége
+    public int pageHeight = 0; // Teljes oldal magassága
+
+    // ANIMATION
+    public double animationDelay = 0.3; // Késleltetés
+    public double animationDuration = 1.2; // Sebesség
+
+    // COURSE DIALOG
+    private IDialogReference? activeDialogReference;
+
+    // THEME
+    private MudTheme theme { get; set; } = new MudTheme();
+
+    // LAST UPDATE CHECK
+    public DateTime lastUpdateCheck = DateTime.Now.AddHours(-1).AddMinutes(-1);
+
+    // SERVER VERSION
+    private string? serverVersion;
+
+    // ACTUAL PROGRAM VERSION
+    private string programVersion = "20251030000000"; // Tárolt verzió (YYYYMMDDHHMMSS formátumban)
+
+    // UPDATE AVAILABLE
+    private bool isUpdateAvailable = false;
+
+    private string updateCheckUrl { get; set; } = String.Empty;
+
+    public string AndroidApplicationUrl { get; set; } = String.Empty;
+
+
+    private string _answer = "";
+
+
+    /// <summary>
+    /// PAGE LOAD
+    /// </summary>
+    #region PAGE LOAD
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // ha van base implementáció, inkább ezt hívd
+            await base.OnInitializedAsync();
+
+            // kis késleltetés, ha kell
+            await Task.Delay(10);
+
+            // config védetten
+            if (configuration != null)
+            {
+                var apiUrl = configuration["apiUrl"];
+
+                if (!string.IsNullOrWhiteSpace(apiUrl))
+                {
+                    updateCheckUrl = $"{apiUrl}/update/version.txt";
+                    AndroidApplicationUrl = $"{apiUrl}/api/Training/DownloadAndroid";
+                }
+            }
+
+            theme = lightTheme;
+        }
+        catch (Exception ex)
+        {
+            // ha véletlenül null a snackbarService, ne dobjon újabb NRE-t
+            snackbarService?.ShowSnackbar(
+                Severity.Error,
+                $"Hiba a betöltés közben: {ex.Message}",
+                pageWidth
+            );
+        }
+
+        // NINCS StateHasChanged(); – Blazor magától újrarenderel
+    }
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await BrowserViewportService.SubscribeAsync(this, fireImmediately: true);
+
+            isMobile = await jsRuntime.InvokeAsync<bool>("mobileCheck");
+
+            await UpdateCheck();
+
+            await RefreshLoggedUser();
+            if (loggedUser.Id < 1)
+            {
+                await ((CustomAuthentication)authenticationStateProvider).MarkUserAsLoggedOut();
+                await RefreshLoggedUser();
+            }
+            else
+            {
+                var uri = navigationManager.ToBaseRelativePath(navigationManager.Uri);
+                if (string.IsNullOrWhiteSpace(uri)) // csak a kezdőoldalon
+                    await GoTo("dashboard");
+            }
+
+            StateHasChanged();
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    public async ValueTask DisposeAsync() => await BrowserViewportService.UnsubscribeAsync(this);
+    #endregion
+
+    /// <summary>
+    /// PAGE SIZE
+    /// </summary>
+    #region PAGE SIZE
+    Guid IBrowserViewportObserver.Id { get; } = Guid.NewGuid();
+
+    ResizeOptions IBrowserViewportObserver.ResizeOptions { get; } = new()
+    {
+        ReportRate = 200,
+        NotifyOnBreakpointOnly = false
+    };
+
+    async Task IBrowserViewportObserver.NotifyBrowserViewportChangeAsync(BrowserViewportEventArgs browserViewportEventArgs)
+    {
+        if (browserViewportEventArgs.IsImmediate)
+        {
+            pageBreakpoint = browserViewportEventArgs.Breakpoint;
+            var pageSize = browserViewportEventArgs.BrowserWindowSize;
+            pageWidth = pageSize.Width;
+            pageHeight = pageSize.Height;
+
+            isMobile = await jsRuntime.InvokeAsync<bool>("mobileCheck");
+        }
+        else
+        {
+            pageBreakpoint = browserViewportEventArgs.Breakpoint;
+            var pageSize = browserViewportEventArgs.BrowserWindowSize;
+            pageWidth = pageSize.Width;
+            pageHeight = pageSize.Height;
+
+            isMobile = await jsRuntime.InvokeAsync<bool>("mobileCheck");
+        }
+
+        // Frissítés, ha van aktív dialógus
+        if (activeDialogReference != null)
+        {
+            var dialogContent = activeDialogReference.Dialog as CourseViewDialog;
+            if (dialogContent != null)
+            {
+                await dialogContent.RefreshDialogContent();
+            }
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+    #endregion
+
+    /// <summary>
+    /// SHOW COURSE DIALOG
+    /// </summary>
+    #region SHOW COURSE DIALOG
+
+    public event Func<Task>? CourseViewed;
+
+    public async Task ShowCourseViewDialog(CourseModel Course)
+    {
+
+        DialogOptions options = new DialogOptions
+        {
+            NoHeader = true,
+            MaxWidth = MaxWidth.ExtraExtraLarge,
+            CloseOnEscapeKey = true,
+            CloseButton = false,
+            FullScreen = true
+        };
+
+        DialogParameters parameters = new DialogParameters
+        {
+            ["Course"] = Course
+        };
+
+        activeDialogReference = await dialogService.ShowAsync<CourseViewDialog>("Kurzus megtekintése", parameters, options);
+        var result = await activeDialogReference.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            // 1) Elmentjük, hogy már látta a felhasználó
+            UserEventModel? userEventModel = loggedUser.UserData.Courses.ToList().Where(w => w.CourseId == Course.CourseId).FirstOrDefault();
+            if (userEventModel == null)
+            {
+                userEventModel = new UserEventModel()
+                {
+                    CourseId = Course.CourseId,
+                    ModificationDate = DateTime.Now
+                };
+                loggedUser.UserData.Courses.Add(userEventModel);
+            }
+            else
+            {
+                userEventModel.ModificationDate = DateTime.Now;
+            }
+
+            // 2) Jelvények kiértékelése és felírása a UserData.Badges-be
+            // (Szükség lesz az összes kurzus azonosítójára az "Összes kurzus teljesítve" jelvényhez.)
+            // Itt kérd le a kurzusokat a saját szolgáltatásodból:
+            var allCourses = await trainingService.GetCourseList(); // IList<CourseModel>
+            var allCourseIds = allCourses.CourseList.Select(c => c.CourseId).ToList();
+
+            var newlyEarned = await badgeService.EvaluateAndPersistAsync(loggedUser.UserData, allCourseIds);
+
+            // 3) Régi kvízek törlése (50 napnál régebbiek)
+            var limit = DateTime.Now.AddDays(-50);
+
+            loggedUser.UserData.Quizzes =
+                loggedUser.UserData.Quizzes
+                    .Where(q => q.ModificationDate >= limit)
+                    .ToList();
+
+            // 4) Mentés
+            ResultModel resultModel = await userService.SetUserData(loggedUser);
+            if (!resultModel.Success)
+            {
+                snackbarService.ShowSnackbar(Severity.Error, resultModel.ErrorMessage);
+            }
+            else
+            {
+                // Visszajelzés(ek)
+                if (newlyEarned.Any())
+                {
+                    var earnedNames = string.Join(", ", newlyEarned.Select(b => b.Name));
+                    snackbarService.ShowSnackbar(Severity.Success, $"Gratulálunk! Új jelvény(ek): {earnedNames}");
+                }
+            }
+
+            StateHasChanged();
+
+            if (CourseViewed is not null)
+                await CourseViewed.Invoke();
+        }
+    }
+    #endregion
+
+    /// <summary>
+    /// UPDATE CHECK
+    /// </summary>
+    #region UPDATE
+    private async Task UpdateCheck()
+    {
+        try
+        {
+            if (isMobile)
+            {
+                if (lastUpdateCheck < DateTime.Now.AddHours(-1))
+                {
+                    // Szerveren tárolt verzió letöltése
+                    var versionData = await httpClient.GetStringAsync(updateCheckUrl);
+                    serverVersion = versionData.Split('\n').FirstOrDefault()?.Trim();
+
+                    if (!string.IsNullOrEmpty(serverVersion))
+                    {
+                        // Összehasonlítás
+                        isUpdateAvailable = string.Compare(programVersion, serverVersion) < 0;
+
+                        if (isUpdateAvailable)
+                        {
+                            // Új verzió elérhető
+                            snackbarService.ShowSnackbar(Severity.Info, $"New version available: {serverVersion}. Please download the new version!");
+                        }
+
+                        lastUpdateCheck = DateTime.Now;
+                        StateHasChanged();
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            serverVersion = "Hiba a verzió lekérdezésekor: " + ex.Message;
+        }
+    }
+
+    private async Task OpenUpdateDialog()
+    {
+        DialogOptions options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            FullWidth = true,
+            MaxWidth = MaxWidth.ExtraSmall,
+            BackdropClick = false,
+            NoHeader = true,
+            CloseButton = true
+        };
+
+        DialogParameters parameters = new DialogParameters
+        {
+            ["isUpdateAvailable"] = isUpdateAvailable,
+            ["showUpdateAvailable"] = isMobile ? true : false
+        };
+
+        var dialog = await dialogService.ShowAsync<UpdateDialog>("Update Dialog", parameters, options);
+        DialogResult? dialogResult = await dialog.Result;
+        if (dialogResult is not null && !dialogResult.Canceled)
+        {
+
+        }
+    }
+    #endregion
+
+    /// <summary>
+    /// GO TO
+    /// </summary>
+    #region GO TO
+    public async Task GoTo(String section, bool checkLogged = false)
+    {
+        // Delay
+        await Task.Delay(1);
+
+        homePage = (section.Replace("/", "") == "" || section.Replace("/", "") == "dashboard") ? true : false;
+
+        StateHasChanged();
+
+        if (checkLogged)
+        {
+            if (loggedUser.Id == 0)
+            {
+                snackbarService.ShowSnackbar(Severity.Warning, "Ehhez a művelethez be kell jelentkezned!", pageWidth);
+                return;
+            }
+        }
+
+        var target = (section.First() == '/' ? "" : "/") + section;
+
+        // HA ugyanarra az URL-re mennél (pl. már /quiz/0-on vagy), fűzz hozzá egy egyedi query-t,
+        // hogy újrarender/újratöltés történjen, de NEM full page reload (nincs forceLoad).
+        var current = navigationManager.ToBaseRelativePath(navigationManager.Uri);
+        if (string.Equals(current, target.TrimStart('/'), StringComparison.OrdinalIgnoreCase))
+            target += (target.Contains('?') ? "&" : "?") + "_ts=" + Guid.NewGuid().ToString("N");
+
+        navigationManager.NavigateTo(target, replace: false, forceLoad: false);
+    }
+    #endregion
+
+    /// <summary>
+    /// LOGOUT
+    /// </summary>
+    #region LOGOUT
+    public async Task Logout()
+    {
+        await ((CustomAuthentication)authenticationStateProvider).MarkUserAsLoggedOut();
+        await RefreshLoggedUser();
+        //await GoTo("/");
+        navigationManager.NavigateTo("/", true);
+    }
+    #endregion
+
+    /// <summary>
+    /// REFRESH LOGGED USER
+    /// </summary>
+    #region REFRESH LOGGED USER
+    public async Task RefreshLoggedUser()
+    {
+        loggedUser = await ((CustomAuthentication)authenticationStateProvider).GetAuthenticatedUserAsync();
+
+        StateHasChanged();
+    }
+    #endregion
+
+    /// <summary>
+    /// PLAY TTS
+    /// </summary>
+    #region PLAY TTS
+    public async ValueTask PlayTtsAsync(string text)
+    {
+        string apiUrl = configuration["apiUrl"].ToString();
+
+        var accessToken = await localStorageService.GetItemAsync<string>("token");
+        if (string.IsNullOrWhiteSpace(accessToken))
+            throw new HttpRequestException("Hiba történt: Token nem található!");
+
+        await jsRuntime.InvokeVoidAsync("tts.playBase64", apiUrl, accessToken, text);
+    }
+
+    public async ValueTask StopTtsAsync()
+    {
+        await jsRuntime.InvokeVoidAsync("tts.stop");
+    }
+    #endregion
+}

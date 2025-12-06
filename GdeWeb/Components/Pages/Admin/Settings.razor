@@ -1,0 +1,101 @@
+﻿@page "/settings"
+@attribute [Authorize]
+@* @attribute [Authorize(Roles = "Admin, Superuser")]
+@attribute [Authorize(Policy = "Over21")] *@
+
+@using GdeWeb.Components.Layout
+@using GdeWeb.Interfaces
+@using GdeWeb.Services
+@using GdeWebModels
+@using System.ComponentModel.DataAnnotations
+@using System.Text.RegularExpressions
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject ISnackbarService snackbarService
+
+<style>
+    .mud-tabs-panels {
+        height: 100%;
+    }
+
+    .card-content .mud-icon-size-medium {
+        font-size: 1.2rem;
+    }
+
+    .card-content .mud-ripple {
+        font-size: 0.8rem !important;
+    }
+
+    :root {
+        --footer-h: 80px;
+    }
+    /* állítsd a valós értékre */
+
+    .fix-footer {
+        position: fixed;
+        inset: auto 0 0 0;
+        height: var(--footer-h);
+        z-index: 100;
+    }
+</style>
+
+<PageTitle>Beállítások</PageTitle>
+
+<div class="main-page">
+
+    <MudCard Elevation="0" Class="card-content h-100">
+
+        <MudTabs @bind-ActivePanelIndex="@activePanelIndex" Outlined="false" Elevation="0" HideSlider="false" Position="Position.Top" SliderAnimation="true" Centered="true" Style="width: 100%; height: inherit;">
+
+            @if (MainLayout.loggedUser.Roles.Any(r => r.Name == "Admin"))
+            {
+                <MudTabPanel Text="Felhasználók" Icon="@Icons.Material.TwoTone.PeopleAlt" Style="min-width: auto; height: 100%;" OnClick="@(() => activePanelName = "Felhasználók")">
+
+                    <SettingsUsers></SettingsUsers>
+
+                </MudTabPanel>
+            }
+            @if (MainLayout.loggedUser.Roles.Any(r => r.Name == "Admin"))
+            {
+                <MudTabPanel Text="Kurzusok" Icon="@Icons.Material.TwoTone.PermMedia" Style="min-width: auto; height: 100%;" OnClick="@(() => activePanelName = "Kurzusok")">
+
+                    <SettingsCourses></SettingsCourses>
+
+                </MudTabPanel>
+            }
+
+        </MudTabs>
+
+    </MudCard>
+
+</div>
+
+@code {
+    [CascadingParameter]
+    public MainLayout MainLayout { get; set; } = default!;
+
+    public int activePanelIndex { get; set; } = 0;
+
+    public string activePanelName { get; set; } = "Chat";
+
+    /// <summary>
+    /// PAGE LOAD
+    /// </summary>
+    #region PAGE LOAD
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await Task.Delay(1);
+            base.OnInitialized();
+        }
+        catch (Exception ex)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt a betöltés során: {ex.Message.ToString()}", MainLayout.pageWidth);
+        }
+
+        StateHasChanged();
+    }
+    #endregion
+}

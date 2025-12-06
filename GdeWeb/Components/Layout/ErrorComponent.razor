@@ -1,0 +1,90 @@
+﻿@using GdeWeb.Interfaces
+
+@inject IJSRuntime jsRuntime
+@inject ISnackbarService snackbarService
+@inject NavigationManager navigationManager
+
+<PageTitle>Error</PageTitle>
+
+<div class="main-page">
+    @if (!PageLoading)
+    {
+        <!-- BODY -->
+        <BlazorAnimate.Animate Animation="Animations.ZoomIn" Delay="TimeSpan.FromSeconds(animationDelay)" Duration="TimeSpan.FromSeconds(animationDuration)" style="height: 100%">
+
+            <MudGrid Justify="Justify.SpaceEvenly" Class="pa-1 h-100" Spacing="0">
+
+                <MudItem xs="12" sm="12" md="12" lg="12" xl="12" xxl="12" Style="align-content: center; text-align: center;">
+
+                    <MudCard Elevation="0" Class="card-max">
+                        <MudCardMedia Image="favicon.png" Height="120" Style="width: 120px; margin-left: auto; margin-right: auto;" />
+                        <MudCardContent>
+                            <MudText Typo="Typo.h2">An error has occurred!</MudText>
+                            <MudText Typo="Typo.body2">Please click the reload button to continue.</MudText>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => Reload())" Class="card-button">Reload</MudButton>
+                        </MudCardActions>
+                    </MudCard>
+
+                </MudItem>
+
+            </MudGrid>
+
+        </BlazorAnimate.Animate>
+    }
+    else
+    {
+        <!-- LOADING -->
+        <div class="loading-center">
+            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+        </div>
+    }
+</div>
+
+@code {
+    
+}
+
+@code {
+    // LOADING PARAMETERS
+    private bool PageLoading = true; // true
+
+    // ANIMATION
+    private double animationDelay = 0.3; // Késleltetés
+    private double animationDuration = 1.2; // Sebesség
+
+    /// <summary>
+    /// PAGE LOAD
+    /// </summary>
+    #region PAGE LOAD
+    protected override async Task OnInitializedAsync()
+    {
+        // Delay
+        await Task.Delay(1);
+        base.OnInitialized();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Page load end
+            await Task.Delay(500);
+            PageLoading = false;
+            StateHasChanged();
+        }
+    }
+    #endregion
+
+    /// <summary>
+    /// BUTTON FUNCTIONS
+    /// </summary>
+    #region BUTTON FUNCTIONS
+    public void Reload()
+    {
+        navigationManager.NavigateTo("/", true);
+        //navigationManager.NavigateTo(navigationManager.Uri, forceLoad: true);
+    }
+    #endregion
+}

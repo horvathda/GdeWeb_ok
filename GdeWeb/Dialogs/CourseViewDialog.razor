@@ -1,0 +1,329 @@
+﻿@using Ganss.Xss
+@using GdeWeb.Components.Cards
+@using GdeWeb.Components.Layout
+@using GdeWeb.Interfaces
+@using GdeWeb.Utilities
+@using GdeWebModels
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.JSInterop
+@using MudBlazor
+@using SkiaSharp
+@using ZXing.Common
+@using ZXing.SkiaSharp
+
+@inject IJSRuntime jsRuntime
+@inject ITrainingService trainingService
+@inject IDialogService dialogService
+@inject ISnackbarService snackbarService
+@inject IConfiguration configuration
+@inject HttpClient httpClient
+
+<style>
+    .mud-dialog .mud-dialog-content {
+    overflow: hidden !important;
+    text-align: center;
+        padding: 0px;
+        margin: 0px;
+    }
+
+    .mud-dialog .dialogbutton {
+    margin-top: 8px;
+    margin-left: 4px;
+    margin-right: 4px;
+    }
+
+    .mud-dialog .mud-list-item {
+    padding-top: 0px;
+    padding-bottom: 0px;
+    }
+
+    .mud-dialog .mud-list-item-gutters {
+    padding-left: 4px;
+    padding-right: 4px;
+    }
+
+    .mud-container--gutters {
+    padding-left: 0px !important;
+    padding-right: 0px !important;
+    }
+
+    .mud-container-maxwidth-lg {
+    max-width: 100% !important;
+    }
+
+    .menu-icon {
+        font-size: clamp(20px, 2.6vw, 28px);
+        line-height: 1;
+        color: color-mix(in oklab, var(--menu-accent) 36%, rgba(255,255,255, 0.8));
+    }
+
+    .html-container {
+        background-color: rgba(0, 0, 0, .09);
+        margin: 4px;
+    }
+
+    .html-content {
+        padding: 12px;
+    }
+
+        /* Reszponzív képek és kódblokkok görgetése */
+        .html-content img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .html-content pre {
+            overflow: auto;
+        }
+
+    /* Ha a dialogba kerül, ez segít, hogy tényleg a belső terület görgessen */
+    .mud-dialog .html-container {
+        overflow: hidden;
+    }
+
+    /* Görgetés */
+    #page_scroll_container {
+        scroll-behavior: smooth;
+    }
+
+    .full-content {
+        height: calc(100vh - 65px);
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Média rész */
+    .media-content {
+        width: 100%;
+        height: auto;
+        min-width: 360px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex: 0 0 auto; /* auto magasság */
+    }
+
+    .media-wrapper {
+        position: relative;
+        width: 100%;
+        height: auto;
+        text-align: center;
+        background-color: rgba(0, 0, 0, .09);
+        margin: 4px;
+    }
+
+    .media-fit {
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        /* border-radius: 6px; */
+        max-width: 100%;
+        max-height: calc((100vh - 65px) / 2);
+    }
+
+    .media-full {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 2000;
+        background-color: black;
+    }
+
+    /* Chat rész */
+    .chat-content {
+        overflow-y: auto;
+        background-color: rgba(255,255,255,0.8);
+        flex: 1 1 auto; /* maradék tér */
+        min-height: 0; /* fontos, hogy tényleg „összeengedje” */
+        overflow: auto; /* ha kell görgetés */
+    }
+
+</style>
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer>
+
+            <!-- FIX APPBAR -->
+            <MudAppBar Elevation="0" Dense="true" Class="py-2 appbar main_blue_bg" Style="@($"--menu-accent:#127C92;")">
+                <div style="display:flow; text-align: left; margin-right: 12px;">
+                    <MudText Typo="Typo.body2" Class="font-bold">@Course.CourseTitle</MudText>
+                    <MudText Typo="Typo.body2" Class="font-bold" Style="font-weight: 400;">@Course.CourseDescription</MudText>
+                </div>
+                <MudSpacer />
+                <MudMenu Style="margin-right: 4px;">
+                    <ActivatorContent>
+                        <MudAvatar Size="Size.Medium" Variant="Variant.Outlined" Style="cursor: pointer;">
+                            <MudIcon Icon="@Icons.Material.Filled.Home" Class="menu-icon" onclick="@(() => Submit())" />
+                        </MudAvatar>
+                    </ActivatorContent>
+                </MudMenu>
+            </MudAppBar>
+
+            <!-- SCROLL TARTALOM -->
+            <div id="page_scroll_container" style="@(MainLayout.isMobile ? "height:calc(100vh - 65px); overflow-y:auto; margin-top: 65px;" : "height:calc(100vh - 65px); margin-top: 65px;")">
+
+                <MudGrid Spacing="0">
+
+                    <!-- VIDEO + CHAT -->
+                    <MudItem xs="12" sm="12" md="12" lg="6" xl="6" xxl="6" Class="full-content">
+
+                        <!-- VIDEO -->
+                        <div class="media-content">
+                            <div class="media-wrapper">
+                                @if (!string.IsNullOrEmpty(Course.CourseMedia))
+                                {
+                                    <video controls 
+                                        class="@((MainLayout.isMobile == true && (MainLayout.pageWidth > MainLayout.pageHeight)) ? "media-full" : "media-fit")">
+                                        
+                                        <source src="@(Course.CourseMedia.StartsWith("data:") ? Course.CourseMedia : (configuration["apiUrl"] + "/" + Course.CourseMedia))" type="video/mp4">
+                                    </video>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.caption">Videó tartalom nem elérhető!</MudText>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- CHAT -->
+                        <div class="chat-content" style="border-top: 1px dotted #b0b0b0;">
+                            <ChatCard CourseId="@Course.CourseId" />
+                        </div>
+
+                    </MudItem>
+
+                    <!-- HTML -->
+                    <MudItem xs="12" sm="12" md="12" lg="6" xl="6" xxl="6" Style="@(MainLayout.isMobile ? "border-top: 1px dotted #b0b0b0;" : "border-left: 1px dotted #b0b0b0;")">
+                        
+                        @if (Course.CourseFile.StartsWith("<"))
+                        {
+                            <style>
+                                #unique_html_scroll_section img,
+                                #unique_html_scroll_section video,
+                                #unique_html_scroll_section iframe,
+                                #unique_html_scroll_section canvas,
+                                #unique_html_scroll_section table {
+                                    max-width: 100% !important;
+                                    height: auto;
+                                }
+                            </style>
+
+                            <div id="unique_html_scroll_section" class="html-container" style="height:calc(100vh - 79px); overflow:auto; border-bottom: 2px solid rgb(0, 153, 168);">
+
+                                @((MarkupString)safeHtml)
+
+                                <MudScrollToTop TopOffset="100"
+                                                OnScroll="OnScroll"
+                                                Selector="#unique_html_scroll_section"
+                                                VisibleCssClass="visible absolute"
+                                                HiddenCssClass="invisible">
+                                    <MudIconButton Variant="Variant.Filled" Icon="@Icons.Material.Filled.ArrowUpward" Color="Color"></MudIconButton>
+                                </MudScrollToTop>
+                            </div>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption">Fájl nem megtekinthető!</MudText>
+                        }
+
+                    </MudItem>
+
+                </MudGrid>
+
+            </div>
+            
+
+        </MudContainer>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public MainLayout MainLayout { get; set; } = default!;
+
+    [CascadingParameter]
+    public IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public CourseModel Course { get; set; }
+
+    private string? albumArtBase64;
+
+    private int Rate = 0;
+
+    // (Ajánlott) sanitizált HTML
+    private static readonly HtmlSanitizer sanitizer = new();
+
+    private string safeHtml { get; set; }
+
+    /// <summary>
+    /// PAGE LOAD
+    /// </summary>
+    #region PAGE LOAD
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (!string.IsNullOrEmpty(Course.CourseFile) && Course.CourseFile.StartsWith("<"))
+            {
+                // HTML fájl esetén nincs szükség további műveletre, mert a safeHtml property már elkészíti a sanitizált HTML-t
+                // string html = MarkdownToHtmlConverter.ConvertMarkdownToHtml(Course.CourseFile ?? string.Empty);
+                safeHtml = sanitizer.Sanitize(Course.CourseFile ?? string.Empty);
+                // safeHtml = MarkdownToHtmlConverter.ConvertMarkdownToHtml(safeHtml);
+            }
+
+            StateHasChanged();
+        }
+    }
+    #endregion
+
+
+    /// <summary>
+    /// REFRESH METHODES
+    /// </summary>
+    #region REFRESH METHODES
+    public async Task RefreshDialogContent()
+    {
+        // Bármilyen logika, ami a dialógus tartalmának frissítéséhez szükséges
+        // Console.WriteLine("Dialog refreshed!");
+
+        // Random rnd = new Random();
+        // Rate = rnd.Next(1, 5);
+
+        await InvokeAsync(StateHasChanged);
+    }
+    #endregion
+
+
+    /// <summary>
+    /// BUTTON METHODES
+    /// </summary>
+    #region BUTTON METHODES
+    public async Task Submit()
+    {
+        await Task.Delay(10);
+
+        MudDialog.Close(DialogResult.Ok<bool>(true));
+    }
+    #endregion
+
+    /// <summary>
+    /// SCROLL FUNCTIONS
+    /// </summary>
+    #region SCROLL FUNCTIONS
+    Color Color = Color.Success;
+    private void OnScroll(ScrollEventArgs e)
+    {
+        Color = (e.FirstChildBoundingClientRect.Top * -1) switch
+        {
+            var x when x < 500 => Color.Primary,
+            //var x when x < 1500 => Color.Secondary,
+            //var x when x < 2500 => Color.Tertiary,
+            _ => Color.Primary // Color.Error
+        };
+    }
+    #endregion
+}

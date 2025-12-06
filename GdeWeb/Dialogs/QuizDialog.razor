@@ -1,0 +1,402 @@
+﻿@using GdeWeb.Components.Cards
+@using GdeWeb.Components.Layout
+@using GdeWebModels
+@using Microsoft.JSInterop
+@using MudBlazor
+
+@inject IJSRuntime jsRuntime
+
+<style>
+    .mud-dialog-content {
+        align-content: center;
+    }
+</style>
+
+<MudDialog Class="quiz-dialog" MaxWidth="MaxWidth.False" FullWidth="true">
+    <DialogContent>
+
+        <div class="quizcard-wrapper" style="display:grid;gap:16px;max-width:720px;margin:auto;">
+
+            <!-- SFX – előtöltve -->
+            <audio id="sfx-level-start" src="/sfx/level_start.mp3" preload="auto"></audio>
+            <audio id="sfx-level-complete" src="/sfx/level_complete.mp3" preload="auto"></audio>
+            <audio id="sfx-answer-success" src="/sfx/answer_success.mp3" preload="auto"></audio>
+            <audio id="sfx-answer-wrong" src="/sfx/answer_wrong.mp3" preload="auto"></audio>
+
+            @if (Phase == PhaseState.Finished)
+            {
+                <div class="card" style="padding:20px;border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,.08);">
+                    <div style="display:flex;flex-direction:column;gap:12px;align-items:center;">
+                        <div style="font-weight:800;font-size:22px;">Eredmény</div>
+                        <div style="opacity:.8;">Pontszám: <strong>@Score</strong> / @Total</div>
+                        <div style="opacity:.8;">Helyes válaszok aránya: <strong>@(Math.Round(100.0 * Score / Math.Max(1, Total)))%</strong></div>
+                        <div class="controls" style="display:flex;gap:8px;margin-top:8px;margin: auto;">
+                            <MudButton OnClick="ResetAll" Color="Color.Default" Variant="Variant.Outlined" Style="width:110px;">Újrakezdés</MudButton>
+                            <MudButton OnClick="Finish" Color="Color.Success" Variant="Variant.Filled" Style="width:110px;">Befejezés</MudButton>
+                        </div>
+                    </div>
+
+                    <div class="quiz-anim" style="width:100%;height:220px;position:relative;display:flex;justify-content:center;align-items:center;gap:12px;margin-top:8px;">
+                        <LottieCard @ref="_confetti" Path="/lotties/confetti.json" Width="0" Height="360" Autoplay="true" Loop="false" Speed="1.4" CssTop="false" />
+                        <LottieCard @ref="_trophy" Path="/lotties/trophy.json" Width="220" Height="220" Autoplay="true" Loop="false" Speed="1.2" />
+                    </div>
+                </div>
+            }
+            else if (Phase == PhaseState.Quiz && Total > 0)
+            {
+                <div class="quiz-anim" style="width:100%;height:160px;position:relative;display:flex;justify-content:center;align-items:center;gap:16px;">
+                    @if (ShowCelebration)
+                    {
+                        <LottieCard @ref="_confetti" Path="/lotties/confetti.json" Width="0" Height="360" Autoplay="true" Loop="false" Speed="1.0" />
+                        <LottieCard @ref="_badge" Path="/lotties/success-badge.json" Width="160" Height="160" Autoplay="true" Loop="false" Speed="1.2" />
+                    }
+                    else
+                    {
+                        @if (QuestionLady)
+                        {
+                            <LottieCard @ref="_lady" Path="/lotties/question_lady.json" Width="160" Height="160" Autoplay="true" Loop="true" Speed="1.0" />
+                        }
+                        else
+                        {
+                            <LottieCard @ref="_man" Path="/lotties/question_sir.json" Width="160" Height="160" Autoplay="true" Loop="true" Speed="1.0" />
+                        }
+                    }
+                </div>
+
+                <div class="duo-progress mt-3">
+                    <div class="duo-progress__fill" style="width:@($"{ProgressValue}%")"></div>
+                </div>
+
+                <div class="card question-card" style="padding:16px;border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,.08);">
+                    <div class="flex" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                        <div style="font-weight:700;font-size:20px;">Kérdés @(CurrentIndex + 1) / @Total</div>
+                        <div style="opacity:.7;">Pont: <strong>@Score</strong></div>
+                    </div>
+                    <div class="mt-2" style="margin-top:8px;font-size:18px;">
+                        @CurrentQuestionText
+                    </div>
+                </div>
+
+                <div class="answers" style="display:grid;grid-template-columns: 1fr 1fr;gap:12px;">
+                    @{
+                        var correctIndex = CurrentOptions.FindIndex(o => o.IsCorrect);
+                    }
+                    @for (int i = 0; i < CurrentOptions.Count; i++)
+                    {
+                        var option = CurrentOptions[i];
+                        var isWrong = WrongShakeIndex == i;
+                        var baseStyle = "box-shadow:0 4px 16px rgba(0,0,0,.06);background:#fff;border: 1px solid rgba(0, 0, 0, .125);font-weight:500;";
+                        var correctStyle = (Answered && i == correctIndex) ? "outline:2px solid #31c48d;background:#ecfdf5;" : "";
+                        var wrongStyle = (Answered && i == SelectedIndex && i != correctIndex) ? "outline:2px solid #f05252;background:#fef2f2;" : "";
+                        var answerStyle = baseStyle + " " + correctStyle + " " + wrongStyle;
+                        var cls = $"answer-card {(isWrong ? "shake" : "")}";
+                        var idx = i; // closure fix
+
+                        <style>
+                            .mud-button-label {
+                                justify-content: flex-start;
+                                font-size: 0.8rem;
+                            }
+                        </style>
+
+                        <MudButton OnClick="@(() => OnSelect(idx))"
+                                   Class="@cls"
+                                   Style="@($"{baseStyle}{correctStyle}{wrongStyle}")"
+                                   Variant="Variant.Text"
+                                   Color="Color.Default"
+                                   FullWidth="true" >
+
+                            <div style="display:flex;align-items:center;gap:10px;">
+                                <div style="width:28px;height:28px;display:grid;place-items:center;border-radius:50%;background:#f4f4f5;font-weight:700;">
+                                    @(idx + 1)
+                                </div>
+                                <div>@option.Text</div>
+                            </div>
+
+                        </MudButton>
+                    }
+                </div>
+
+                <div class="controls" style="display:flex;justify-content:space-between;gap:12px;width:100%;">
+                    <MudButton OnClick="CancelQuiz" Color="Color.Default" Variant="Variant.Outlined" Style="@(MainLayout.isMobile ? "overflow-wrap: anywhere;" : "overflow-wrap: anywhere; font-size: 0.8rem;")">Megszakítás</MudButton>
+                    <MudButton OnClick="ResetAll" Color="Color.Default" Variant="Variant.Outlined" Style="@(MainLayout.isMobile ? "overflow-wrap: anywhere;" : "overflow-wrap: anywhere; font-size: 0.8rem;")">Újrakezdés (újrakeverve)</MudButton>
+                    <MudButton OnClick="Next" Disabled="@(!Answered)" Color="Color.Success" Variant="Variant.Filled" Style="@(MainLayout.isMobile ? "overflow-wrap: anywhere;" : "overflow-wrap: anywhere; font-size: 0.8rem;")">Következő</MudButton>
+                </div>
+
+                <div style="display:flex;align-items:center;width: 100%;">
+                    <MudCheckBox @bind-Value="SoundsOn" Label="Hangok engedélyezése" />
+                </div>
+            }
+            else
+            {
+                <div class="card" style="padding:16px;border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,.08);">
+                    <div>Nincs megjeleníthető kérdés.</div>
+                </div>
+            }
+
+        </div>
+
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public MainLayout MainLayout { get; set; } = default!;
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    // PARAMÉTEREK
+    [Parameter] public IEnumerable<QuizModel> Items { get; set; } = Enumerable.Empty<QuizModel>();
+    [Parameter] public CourseModel? Course { get; set; } = new();
+    [Parameter] public bool ShuffleQuestions { get; set; } = true;
+    [Parameter] public bool ShuffleOptions { get; set; } = true;
+
+    // Napi kvíz újrasorsolás a parenttől (opcionális)
+    [Parameter] public Func<Task<List<QuizModel>>>? DailyRefreshCallback { get; set; }
+
+    // FÁZISOK
+    private enum PhaseState { Quiz, Finished }
+    private PhaseState Phase = PhaseState.Quiz;
+
+    // Állapot (ugyanaz mint a régi QuizCard-ban)
+    private List<(QuizModel Source, List<(string Text, bool IsCorrect)> Options)> Questions = new();
+    private int CurrentIndex = 0;
+    private int Score = 0;
+
+    private bool Answered = false;
+    private int? SelectedIndex = null;
+    private int WrongShakeIndex = -1;
+
+    private bool ShowCelebration = false;
+
+    private LottieCard? _confetti;
+    private LottieCard? _badge;
+    private LottieCard? _trophy;
+    private LottieCard? _man;
+    private LottieCard? _lady;
+
+    private bool QuestionLady = true;
+
+    private (QuizModel Source, List<(string Text, bool IsCorrect)> Options) Current
+        => Questions[Math.Clamp(CurrentIndex, 0, Math.Max(0, Questions.Count - 1))];
+
+    private string CurrentQuestionText
+        => string.IsNullOrWhiteSpace(Current.Source.QuizQuestion) ? "(nincs kérdés)" : Current.Source.QuizQuestion;
+
+    private List<(string Text, bool IsCorrect)> CurrentOptions => Current.Options;
+
+    private int Total => Questions.Count;
+
+    private bool SoundsOn { get; set; } = true;
+
+    private int ProgressValue
+        => Phase switch
+        {
+            PhaseState.Quiz => Total <= 0 ? 0 : (int)Math.Round(100.0 * Math.Min(CurrentIndex, Total) / Total),
+            PhaseState.Finished => 100,
+            _ => 0
+        };
+
+    /// <summary>
+    /// PAGE LOAD
+    /// </summary>
+    #region PAGE LOAD
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        RebuildQuestions(Items);
+
+        // Induláskor az első kérdés felolvasása
+        if (Total > 0 && SoundsOn)
+        {
+            await MainLayout.PlayTtsAsync(CurrentQuestionText);
+        }
+    }
+    #endregion
+
+    private void RebuildQuestions(IEnumerable<QuizModel> input)
+    {
+        var rng = new Random();
+
+        var list = new List<(QuizModel Source, List<(string Text, bool IsCorrect)> Options)>();
+        foreach (var m in input ?? Enumerable.Empty<QuizModel>())
+        {
+            var opts = new List<(string Text, bool IsCorrect)>();
+
+            void AddIfAny(string s, bool isCorrect)
+            {
+                if (!string.IsNullOrWhiteSpace(s))
+                    opts.Add((s, isCorrect));
+            }
+
+            AddIfAny(m.QuizAnswer1, EqualsCI(m.QuizAnswer1, m.QuizSuccess));
+            AddIfAny(m.QuizAnswer2, EqualsCI(m.QuizAnswer2, m.QuizSuccess));
+            AddIfAny(m.QuizAnswer3, EqualsCI(m.QuizAnswer3, m.QuizSuccess));
+            AddIfAny(m.QuizAnswer4, EqualsCI(m.QuizAnswer4, m.QuizSuccess));
+
+            if (opts.Count == 0) opts.Add(("(nincs elérhető válasz)", true));
+
+            if (ShuffleOptions) opts = opts.OrderBy(_ => rng.Next()).ToList();
+
+            if (opts.All(o => !o.IsCorrect))
+            {
+                var first = opts[0];
+                opts[0] = (first.Text, true);
+            }
+
+            list.Add((m, opts));
+        }
+
+        if (ShuffleQuestions)
+            list = list.OrderBy(_ => rng.Next()).ToList();
+
+        Questions = list;
+
+        CurrentIndex = 0;
+        Score = 0;
+        Answered = false;
+        SelectedIndex = null;
+        WrongShakeIndex = -1;
+        ShowCelebration = false;
+        Phase = (Questions.Count > 0) ? PhaseState.Quiz : PhaseState.Finished;
+
+        StateHasChanged();
+    }
+
+    private async Task OnSelect(int i)
+    {
+        if (Phase != PhaseState.Quiz || Answered) return;
+
+        SelectedIndex = i;
+        Answered = true;
+
+        var correctIndex = CurrentOptions.FindIndex(o => o.IsCorrect);
+        if (i == correctIndex)
+        {
+            Score += 1;
+
+            Current.Source.QuizSelected = CurrentOptions[i].Text;
+
+            await TriggerSuccess(autoNext: true);
+        }
+        else
+        {
+            if (i >= 0 && i < CurrentOptions.Count)
+                Current.Source.QuizSelected = CurrentOptions[i].Text;
+
+            await TriggerWrong(i);
+        }
+    }
+
+    private async Task TriggerSuccess(bool autoNext)
+    {
+        await PlaySfx("sfx-answer-success");
+        ShowCelebration = true;
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
+
+        if (_confetti is not null) await _confetti.Play();
+        if (_badge is not null) await _badge.Play();
+
+        await Task.Delay(1200);
+        ShowCelebration = false;
+        await InvokeAsync(StateHasChanged);
+
+        if (autoNext && Phase == PhaseState.Quiz)
+            await Next();
+    }
+
+    private async Task TriggerWrong(int i)
+    {
+        await PlaySfx("sfx-answer-wrong");
+        WrongShakeIndex = i;
+        StateHasChanged();
+        await Task.Delay(450);
+        WrongShakeIndex = -1;
+        StateHasChanged();
+    }
+
+    private async Task PlaySfx(string id)
+    {
+        if (!SoundsOn) return;
+        try { await jsRuntime.InvokeVoidAsync("quizSfx.play", id); } catch { }
+    }
+
+    private async Task Next()
+    {
+        var rng = new Random();
+        QuestionLady = rng.Next(2) == 0;
+
+        if (!Answered || Phase != PhaseState.Quiz) return;
+
+        if (CurrentIndex < Questions.Count - 1)
+        {
+            CurrentIndex++;
+            Answered = false;
+            SelectedIndex = null;
+            WrongShakeIndex = -1;
+
+            if (SoundsOn)
+                await MainLayout.PlayTtsAsync(CurrentQuestionText);
+        }
+        else
+        {
+            Phase = PhaseState.Finished;
+            _ = PlayFinishAnimations();
+        }
+    }
+
+    private async Task PlayFinishAnimations()
+    {
+        await PlaySfx("sfx-level-complete");
+        await InvokeAsync(StateHasChanged);
+        await Task.Yield();
+        if (_confetti is not null) await _confetti.Play();
+        if (_trophy is not null) await _trophy.Play();
+    }
+
+    private async Task ResetAll()
+    {
+        // Napi kvíz: parenttől kérünk új sorsolást
+        if (string.IsNullOrEmpty(Course?.CourseTitle) && DailyRefreshCallback is not null)
+        {
+            var newList = await DailyRefreshCallback.Invoke();
+            RebuildQuestions(newList ?? Enumerable.Empty<QuizModel>());
+        }
+        else
+        {
+            // Kurzuskvíz: lokális újrakeverés
+            RebuildQuestions(Items);
+        }
+
+        Phase = PhaseState.Quiz;
+
+        if (Total > 0 && SoundsOn)
+            await MainLayout.PlayTtsAsync(CurrentQuestionText);
+    }
+
+    private void CancelQuiz()
+    {
+        // Semmi mentés, sima Cancel a dialogon
+        MudDialog.Cancel();
+    }
+
+    private void Finish()
+    {
+        var model = new UserQuizModel
+        {
+            CourseId = Items?.FirstOrDefault()?.CourseId ?? 0,
+            QuizQuestion = Total,
+            QuizResult = Score,
+            DailyQuiz = string.IsNullOrEmpty(Course?.CourseTitle) ? true : false,
+            ModificationDate = DateTime.Now
+        };
+
+        MudDialog.Close(DialogResult.Ok(model));
+    }
+
+    private static bool EqualsCI(string a, string b)
+        => string.Equals(a?.Trim(), b?.Trim(), StringComparison.OrdinalIgnoreCase);
+}

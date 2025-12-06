@@ -1,0 +1,89 @@
+﻿@inject IJSRuntime JS
+
+<style>
+    .confetti {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 10;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .confetti_top {
+        top:0;
+    }
+
+    .confetti_bottom {
+        bottom: 0;
+    }
+
+    .all {
+        position: relative;
+        z-index: 20;
+        margin-left:auto;
+        margin-right:auto;
+    }
+</style>
+
+<div @ref="_host" style="width:@WidthPx;height:@HeightPx;" class="@design"></div>
+
+@code {
+    [Parameter] public string Path { get; set; } = "/lotties/confetti.json"; // Lottie JSON
+    [Parameter] public bool Loop { get; set; } = false;
+    [Parameter] public bool Autoplay { get; set; } = false;
+    [Parameter] public double Speed { get; set; } = 1.0;
+    [Parameter] public int Width { get; set; } = 220;
+    [Parameter] public int Height { get; set; } = 220;
+    [Parameter] public bool CssTop { get; set; } = true;
+
+    private ElementReference _host;
+    private IJSObjectReference? _module;
+    private IJSObjectReference? _controller;
+
+    //private string WidthPx => $"{Width}px";
+    private string WidthPx => (Width == 0 ? "100%" : $"{Width}px");
+    private string HeightPx => $"{Height}px";
+
+    private string design => Path.Contains("confetti") ? (CssTop ? "confetti confetti-top" : "confetti confetti-bottom") : "all";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _module = await JS.InvokeAsync<IJSObjectReference>("import", "/js/lottie-interop.js");
+        _controller = await _module.InvokeAsync<IJSObjectReference>(
+            "renderLottie", _host, new { path = Path, loop = Loop, autoplay = Autoplay, speed = Speed });
+    }
+
+    public async Task Play()
+    {
+        if (_controller is not null)
+        {
+            await _controller.InvokeVoidAsync("play");
+        }
+    }
+
+    public async Task Pause()
+    {
+        if (_controller is not null)
+        {
+            await _controller.InvokeVoidAsync("pause");
+        }
+    }
+
+    public async Task Stop()
+    {
+        if (_controller is not null)
+        {
+            await _controller.InvokeVoidAsync("stop");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_controller is not null) await _controller.InvokeVoidAsync("destroy");
+        if (_module is not null) await _module.DisposeAsync();
+    }
+}

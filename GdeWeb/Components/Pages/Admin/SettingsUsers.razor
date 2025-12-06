@@ -1,0 +1,404 @@
+﻿@using GdeWeb.Components.Layout
+@using GdeWeb.Dialogs
+@using GdeWeb.Interfaces
+@using GdeWebModels
+
+@inject IUserService userService
+@inject IDialogService dialogService
+@inject IConfiguration configuration
+@inject ISnackbarService snackbarService
+
+<style>
+    .mud-table-toolbar {
+        @(MainLayout.isMobile ? "display: inline-table;" : "")
+    }
+
+    .zero-padding {
+        padding-top: 0px;
+        padding-bottom: 0px;
+    }
+
+    .search {
+        max-width: 300px;
+    }
+
+    .fix-search {
+        position: sticky;
+        top: 0; /* mindig a tetején marad */
+        background: var(--mud-palette-background);
+        z-index: 100;
+        padding-top: 8px;
+        padding-bottom: 8px;
+    }
+
+    .fix-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0px;
+        right: 0px;
+        width: 100%;
+        z-index: 100;
+    }
+</style>
+
+<!-- BODY -->
+<MudPaper Class="card-full zero-padding text-center h-100" Elevation="0">
+
+    @if (!PageLoading)
+    {
+        <BlazorAnimate.Animate Animation="Animations.ZoomIn" Delay="TimeSpan.FromSeconds(MainLayout.animationDelay)" Duration="TimeSpan.FromSeconds(MainLayout.animationDuration)" style="width: 100%;">
+
+            <MudTable Class="tool" T="UserModel" FixedHeader="true" FixedFooter="true" Items="userList.UserList" Elevation="0" Hover="true" Dense="true" RowsPerPage="15" Breakpoint="Breakpoint.Sm" Filter="new Func<UserModel,bool>(FilterFunc)" OnRowClick="(e) => ShowModifyUser(e.Item)">
+
+                <ToolBarContent>
+
+                    <!-- ===== DESKTOP/TABLET ===== -->
+                    @if (!MainLayout.isMobile)
+                    {
+                        <MudText Typo="Typo.h6" Class="mt-5 mb-auto">Felhasználók</MudText>
+                        <MudSpacer />
+                        <MudTextField T="string" @bind-Value="searchText" Margin="Margin.Dense" Label="Keresés" Clearable="true" Variant="Variant.Text" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" HelperText="Nyomja meg az ENTER billentyűt a kereséshez." HelperTextOnFocus="true" MaxLength="50" Class="search" />
+                    }
+
+                    <!-- ===== MOBIL ===== -->
+                    @if (MainLayout.isMobile)
+                    {
+                        <div class="fix-search">
+                            <div class="d-flex" style="max-width: 360px; margin-left:auto; margin-right: auto;">
+                                <MudTextField T="string" @bind-Value="searchText" Placeholder="Keresés" Clearable="true" Variant="Variant.Text" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="card-input-margin-right mt-3" />
+
+                                @if (MainLayout.loggedUser.Roles.Any(r => r.Name == "Admin"))
+                                {
+                                    <MudTooltip Text="Create" Color="Color.Dark">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Size="Size.Small" Class="mr-1 ml-1 mt-3 mud-theme-primary" OnClick="() => ShowAddUser()" />
+                                    </MudTooltip>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                </ToolBarContent>
+
+                <HeaderContent>
+                    <MudTh></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<UserModel, object>(x => x.LastName)">Vezetéknév</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<UserModel, object>(x=>x.FirstName)">Keresztnév</MudTableSortLabel></MudTh>
+                    
+                    
+                    <MudTh><MudTableSortLabel SortBy="new Func<UserModel, object>(x=>x.Email != null)">Email</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<UserModel, object>(x=>x.FirstName)">Szerepkör</MudTableSortLabel></MudTh>
+                    <MudTh Style="width:60px; text-align:center;">
+                        @if (MainLayout.loggedUser.Roles.Any(r => r.Name == "Admin"))
+                        {
+                            <MudTooltip Text="Létrehozás" Color="Color.Dark">
+                                <MudIconButton Icon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Size="Size.Small" Class="mr-1 ml-1 mud-theme-primary" OnClick="() => ShowAddUser()" />
+                            </MudTooltip>
+                        }
+                    </MudTh>
+                </HeaderContent>
+
+                <RowTemplate>
+                    <MudTd Style="width:40px; text-align: center;" DataLabel="Image">
+                        <MudImage Src="img/profile.png" Alt="Profile" Height="32" Width="32" Style="border-radius: 100%; object-fit: cover; border: 1px solid #ccc;" />
+                    </MudTd>
+                    <MudTd DataLabel="Vezetéknév">
+                        <MudText Typo="@betumeret" Color="@(context.Active? MudBlazor.Color.Default : MudBlazor.Color.Error)">@context.LastName</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Keresztnév">
+                        <MudText Typo="@betumeret" Color="@(context.Active? MudBlazor.Color.Default : MudBlazor.Color.Error)">@context.FirstName</MudText>
+                    </MudTd>
+                    
+                    
+                    <MudTd DataLabel="Email">
+                        <MudText Typo="@betumeret" Color="@(context.Active? MudBlazor.Color.Default : MudBlazor.Color.Error)">@context.Email</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Szerepkör">
+                        @if (context.Roles.Count > 3)
+                        {
+                            <MudText Typo="@betumeret" Color="@(context.Active? MudBlazor.Color.Default : MudBlazor.Color.Error)">@(string.Join(", ", context.Roles.Where(w => !string.IsNullOrEmpty(w.Name)).OrderBy(x => x.Name).Take(3).Select(x => x.Name))) <span>...</span></MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="@betumeret" Color="@(context.Active? MudBlazor.Color.Default : MudBlazor.Color.Error)">@(string.Join(", ", context.Roles.Where(w => !string.IsNullOrEmpty(w.Name)).OrderBy(x => x.Name).Select(x => x.Name)))</MudText>
+                        }
+                    </MudTd>
+                    <MudTd Style="@(MainLayout.isMobile ? "" : "width: 60px;")">
+                        <div class="d-flex" style="@(MainLayout.isMobile ? "justify-content: end;" : "justify-content: space-between;")">
+                            @if (MainLayout.loggedUser.Roles.Any(r => r.Name == "Admin"))
+                            {
+                                <MudTooltip Text="Módosítás" Color="Color.Dark">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Filled" Size="Size.Small" Class="mr-1 mud-theme-primary" OnClick="() => ShowModifyUser(context)" />
+                                </MudTooltip>
+                            }
+                            @if (MainLayout.loggedUser.Roles.Any(r => r.Name == "Admin"))
+                            {
+                                @if (context.Active)
+                                {
+                                    <MudTooltip Text="Inaktiválás" Color="Color.Dark">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Block" Variant="Variant.Filled" Size="Size.Small" Class="mr-1 mud-theme-primary" OnClick="() => ShowSetUserState(context)" />
+                                    </MudTooltip>
+                                }
+                                else
+                                {
+                                    <MudTooltip Text="Aktiválás" Color="Color.Dark">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Check" Variant="Variant.Filled" Size="Size.Small" Class="mr-1 mud-theme-primary" OnClick="() => ShowSetUserState(context)" />
+                                    </MudTooltip>
+                                }
+                            }
+                        </div>
+                    </MudTd>
+
+                </RowTemplate>
+
+                <PagerContent>
+                    <MudTablePager HideRowsPerPage="true" HidePageNumber="false" />
+                </PagerContent>
+                <NoRecordsContent>
+                    <MudText>Nincs megjeleníthető adat.</MudText>
+                </NoRecordsContent>
+                <LoadingContent>
+                    <MudText>Betöltés...</MudText>
+                </LoadingContent>
+            </MudTable>
+
+        </BlazorAnimate.Animate>
+    }
+    else
+    {
+        <!-- LOADING -->
+        <div class="loading-center">
+            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+        </div>
+    }
+    
+</MudPaper>
+
+@code {
+    [CascadingParameter]
+    public MainLayout MainLayout { get; set; } = default!;
+
+    // LOADING PARAMETERS
+    private bool PageLoading = true; // true
+
+    // USER LIST
+    private UserListModel userList = new UserListModel();
+
+    // ROLE LIST
+    private RoleListModel roleList = new RoleListModel();
+
+    // SEARCH TEXT
+    public string searchText = string.Empty;
+
+    // FONT SIZE
+    private Typo betumeret = Typo.body2;
+
+
+    /// <summary>
+    /// PAGE LOAD
+    /// </summary>
+    #region PAGE LOAD
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await Task.Delay(1);
+            base.OnInitialized();
+        }
+        catch (Exception ex)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt a betöltés során: {ex.Message.ToString()}", MainLayout.pageWidth);
+        }
+
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadData();
+
+            // Page load end
+            await Task.Delay(500);
+            PageLoading = false;
+
+            StateHasChanged();
+        }
+    }
+    #endregion
+
+
+    /// <summary>
+    /// REFRESH METHODES
+    /// </summary>
+    #region REFRESH METHODES
+    private async Task LoadData()
+    {
+        userList = await userService.GetUserList();
+
+        if (!userList.Result.Success)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt a betöltés során: {userList.Result.ErrorMessage.ToString()}", MainLayout.pageWidth);
+        }
+
+        roleList = await userService.GetRoles();
+
+        if (!roleList.Result.Success)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt a betöltés során: {roleList.Result.ErrorMessage.ToString()}", MainLayout.pageWidth);
+        }
+
+        StateHasChanged();
+    }
+    #endregion
+
+
+    /// <summary>
+    /// BUTTON FUNCTIONS
+    /// </summary>
+    #region BUTTON FUNCTIONS
+    public async Task ShowAddUser()
+    {
+        UserModel ModifyUser = new UserModel();
+        ModifyUser.Result = new ResultModel() { Success = true, ErrorMessage = "" };
+
+        DialogOptions options = new DialogOptions
+            {
+                CloseOnEscapeKey = true,
+                FullWidth = true,
+                MaxWidth = MaxWidth.Medium, 
+                BackdropClick = false
+            };
+
+        DialogParameters parameters = new DialogParameters
+            {
+                ["ModifyUser"] = ModifyUser,
+                ["Modosito"] = MainLayout.loggedUser.Id,
+                ["RoleList"] = roleList
+            };
+
+        var dialog = await dialogService.ShowAsync<UserDialog>("Felhasználó létrehozása", parameters, options);
+        DialogResult? dialogResult = await dialog.Result;
+        if (dialogResult is not null && !dialogResult.Canceled)
+        {
+            await LoadData();
+            await MainLayout.RefreshLoggedUser();
+        }
+    }
+
+    public async Task ShowModifyUser(UserModel user)
+    {
+        DialogOptions options = new DialogOptions
+            {
+                CloseOnEscapeKey = true,
+                FullWidth = true,
+                MaxWidth = MaxWidth.Medium,
+                BackdropClick = false
+            };
+
+        DialogParameters parameters = new DialogParameters
+            {
+                ["ModifyUser"] = new UserModel
+                {
+                    Id = user.Id,
+                    Email = user.Email,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Password = user.Password,
+                    Modifier = MainLayout.loggedUser.Id,
+                    UserData = user.UserData,
+                    Roles = user.Roles,
+                    Result = new ResultModel() { Success = true, ErrorMessage = "" }
+                },
+                ["Modosito"] = MainLayout.loggedUser.Id,
+                ["RoleList"] = roleList
+            };
+
+        var dialog = await dialogService.ShowAsync<UserDialog>("Felhasználó módosítása", parameters, options);
+        DialogResult? dialogResult = await dialog.Result;
+        if (dialogResult is not null && !dialogResult.Canceled)
+        {
+            await LoadData();
+            await MainLayout.RefreshLoggedUser();
+        }
+    }
+
+    public async Task ShowSetUserState(UserModel user)
+    {
+        DialogOptions options = new DialogOptions
+            {
+                CloseOnEscapeKey = true,
+                FullWidth = true,
+                MaxWidth = MaxWidth.Small,
+            };
+
+        user.Modifier = MainLayout.loggedUser.Id;
+
+        DialogParameters parameters = new DialogParameters
+            {
+                ["User"] = user,
+                ["Active"] = !user.Active
+            };
+
+        string dialogTitle = string.Empty;
+
+        if (user.Active)
+        {
+            dialogTitle = $"{user.LastName} {user.FirstName} felhasználó deaktiválása";
+        }
+        else
+        {
+            dialogTitle = $"{user.LastName} {user.FirstName} felhasználó aktiválása";
+        }
+
+        var dialog = await dialogService.ShowAsync<UserActiveDialog>(dialogTitle, parameters, options);
+        DialogResult? dialogResult = await dialog.Result;
+        if (dialogResult is not null && !dialogResult.Canceled)
+        {
+            ResultModel? dataResult = (ResultModel)dialogResult.Data;
+
+            if (dataResult is not null && dataResult.Success)
+            {
+                if (!user.Active)
+                {
+                    snackbarService.ShowSnackbar(Severity.Success, "Felhasználó sikeresen letiltva!", MainLayout.pageWidth);
+                }
+                else
+                {
+                    snackbarService.ShowSnackbar(Severity.Success, "Felhasználó sikeresen engedélyezve!", MainLayout.pageWidth);
+                }
+
+                await LoadData();
+                await MainLayout.RefreshLoggedUser();
+            }
+            else
+            {
+                snackbarService.ShowSnackbar(Severity.Error, dataResult.ErrorMessage, MainLayout.pageWidth);
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    public bool FilterFunc(UserModel element) => Filter(element, searchText);
+
+    public bool Filter(UserModel element, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (element.FirstName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.LastName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if ((element.FirstName + " " + element.LastName).Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (element.Email != null)
+            if (element.Email.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+        foreach (var role in element.Roles)
+            if (role.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+                return true;
+        return false;
+    }
+    #endregion
+}

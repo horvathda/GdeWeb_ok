@@ -1,0 +1,364 @@
+﻿@using GdeWeb.Components.Layout
+@using GdeWeb.Interfaces
+@using GdeWebModels
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+@using System.Text.RegularExpressions
+
+@inject IUserService userService
+@inject IConfiguration configuration
+@inject ISnackbarService snackbarService
+
+<style>
+    .mud-dialog .mud-dialog-content {
+        overflow: hidden !important;
+        text-align: center;
+    }
+</style>
+
+<MudDialog>
+    <DialogContent>
+
+        @if(!dialogLoaded)
+        {
+            <div class="d-flex flex-column justify-center mt-5">
+                <MudButton HtmlTag="label" Class="profile-image ml-auto mr-auto mb-3" Variant="Variant.Outlined" Color="Color.Primary" for="fileInput" FullWidth="false">
+                    <MudImage Src="img/profile.png" Alt="Profile" Height="80" Width="80" Style="border-radius: 100%; object-fit: cover;" />
+                </MudButton>
+            </div>
+
+            <MudForm Model="@ModifyUser" @ref="form" @bind-Errors="@formErrors">
+
+                <MudGrid>
+                    <MudItem xs="6" sm="6" md="6" lg="6" xl="6" xxl="6">
+                        <MudTextField T="string"
+                                      @bind-Value="ModifyUser.LastName"
+                                      FullWidth="true"
+                                      Margin="Margin.Normal"
+                                      Label="Vezetéknév"
+                                      Variant="Variant.Text"
+                                      MaxLength="100"
+                                      Required="@required"
+                                      OnlyValidateIfDirty="true"
+                                      ErrorText=""
+                                      Validation="@(new Func<string, string>(LastNameMatch))" />
+                    </MudItem>
+
+                    <MudItem xs="6" sm="6" md="6" lg="6" xl="6" xxl="6">
+                        <MudTextField T="string"
+                                      @bind-Value="ModifyUser.FirstName"
+                                      FullWidth="true"
+                                      Margin="Margin.Normal"
+                                      Label="Keresztnév"
+                                      Variant="Variant.Text"
+                                      MaxLength="100"
+                                      Required="@required"
+                                      OnlyValidateIfDirty="true"
+                                      ErrorText=""
+                                      Validation="@(new Func<string, string>(FirstNameMatch))" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="12" md="6" lg="6" xl="6" xxl="6">
+                        <MudTextField T="string"
+                                      @bind-Value="ModifyUser.Email"
+                                      FullWidth="true"
+                                      Margin="Margin.Normal"
+                                      Label="Email"
+                                      Variant="Variant.Text"
+                                      MaxLength="100"
+                                      Required="false"
+                                      OnlyValidateIfDirty="true"
+                                      ErrorText=""
+                                      Validation="@(new Func<string, string>(EmailMatch))"
+                                      InputType="InputType.Email" />
+                    </MudItem>
+
+                    <MudItem xs="10" sm="10" md="5" lg="5" xl="5" xxl="5">
+                        <MudTextField T="string"
+                                      @bind-Value="ModifyUser.Password"
+                                      FullWidth="true"
+                                      Margin="Margin.Normal"
+                                      Label="Jelszó"
+                                      Variant="Variant.Text"
+                                      MaxLength="50"
+                                      Required="false"
+                                      OnlyValidateIfDirty="true"
+                                      ErrorText=""
+                                      Validation="@(new Func<string, string>(PasswordMatch))"
+                                      InputType="@(isPasswordShow ? InputType.Text : InputType.Password)"
+                                      Adornment="Adornment.End"
+                                      AdornmentColor="Color.Primary"
+                                      AdornmentIcon="@(isPasswordShow ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                                      OnAdornmentClick="@ShowPassword"
+                                      AdornmentAriaLabel="Jelszó megjelenítése"
+                                      Immediate="true"
+                                      Clearable="true" />
+                    </MudItem>
+
+                    <MudItem xs="2" sm="2" md="1" lg="1" xl="1" xxl="1" Style="text-align: center;margin: auto;">
+                        <MudIconButton Icon="@Icons.Material.Filled.GeneratingTokens"
+                                       Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       Class="mr-1"
+                                       OnClick="GeneratePassword"
+                                       AriaLabel="Jelszó generálása" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="12" md="12" lg="12" xl="12" xxl="12">
+                        <MudRadioGroup T="string" @bind-Value="selectedRole" Required="false">
+                            @foreach (var role in RoleList.RoleList.Where(w => !string.IsNullOrEmpty(w.Name)))
+                            {
+                                <MudRadio T="string" Value="@role.Name">@role.Name</MudRadio>
+                            }
+                        </MudRadioGroup>
+                    </MudItem>
+                </MudGrid>
+
+            </MudForm>
+        }
+        else
+        {
+            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Cancel" Class="card-button">Mégsem</MudButton>
+        @if (!dialogLoaded)
+        {
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Class="card-button">Mentés</MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code{
+    [CascadingParameter]
+    public MainLayout MainLayout { get; set; } = default!;
+
+    [CascadingParameter]
+    public IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public UserModel ModifyUser { get; set; } = default!;
+
+    [Parameter]
+    public int Modosito { get; set; }
+
+    [Parameter]
+    public RoleListModel RoleList { get; set; }
+
+
+    public bool dialogLoaded = false;
+
+
+    public MudForm form = default!;
+    private string[] formErrors = Array.Empty<string>();
+    private bool required { get; set; } = false;
+
+    private bool isPasswordShow { get; set; } = false;
+    private string selectedRole = default!;
+
+    public int? strength;
+
+    /// <summary>
+    /// PAGE LOAD
+    /// </summary>
+    #region PAGE LOAD
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.Delay(10);
+        if (ModifyUser.Id > 0)
+        {
+            //selectedRoles = ModifyUser.Roles.Where(w => !string.IsNullOrEmpty(w.Name)).Select(x => x.Name);
+            selectedRole = ModifyUser.Roles.Where(w => !string.IsNullOrEmpty(w.Name)).Select(x => x.Name).FirstOrDefault() ?? String.Empty;
+        }
+
+        dialogLoaded = false;
+    }
+    #endregion
+
+
+    /// <summary>
+    /// BUTTON FUNCTIONS
+    /// </summary>
+    #region BUTTON FUNCTIONS
+    private void ShowPassword() => isPasswordShow = !isPasswordShow;
+
+    private static readonly Random _rnd = new Random();
+
+    private async Task GeneratePassword()
+    {
+        // kis késleltetés UI-hoz (mint a mintában)
+        await Task.Delay(10);
+        ModifyUser.Password = GenerateSecurePassword(12); // pl. 12 karakter hosszú
+        // ha azonnal validálni akarod a mezőt:
+        await form.Validate();
+        StateHasChanged();
+    }
+
+    private string GenerateSecurePassword(int length)
+    {
+        if (length < 8) length = 8;
+        if (length > 20) length = 20;
+
+        const string lower = "abcdefghijklmnopqrstuvwxyz";
+        const string upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const string digits = "0123456789";
+        const string special = "!@#$%^&*()_+-=[]{}|;:,.<>?";
+
+        // garantált karakterek
+        var chars = new List<char>
+    {
+        lower[_rnd.Next(lower.Length)],
+        upper[_rnd.Next(upper.Length)],
+        digits[_rnd.Next(digits.Length)],
+        special[_rnd.Next(special.Length)]
+    };
+
+        // maradék karakterek random keverve a teljes készletből
+        string all = lower + upper + digits + special;
+        for (int i = chars.Count; i < length; i++)
+        {
+            chars.Add(all[_rnd.Next(all.Length)]);
+        }
+
+        // keverés, hogy a garantált karakterek ne mindig az elején legyenek
+        return new string(chars.OrderBy(_ => _rnd.Next()).ToArray());
+    }
+
+    public async Task Submit()
+    {
+        // kötelező jelölések bekapcsolása és UI frissítése a validáció előtt
+        required = true;
+        StateHasChanged();
+        await Task.Delay(50);
+
+        await form.Validate();
+
+        if(form.IsValid)
+        {
+            ModifyUser.Roles = new List<RoleModel>();
+
+            if (!string.IsNullOrWhiteSpace(selectedRole))
+            {
+                var model = RoleList.RoleList.FirstOrDefault(x => x.Name == selectedRole);
+                if (model is null)
+                {
+                    snackbarService.ShowSnackbar(Severity.Error, "A kiválasztott szerepkör nem érvényes.", MainLayout.pageWidth);
+                    return;
+                }
+                model.UserId = Modosito;
+                model.Result = new ResultModel { Success = true, ErrorMessage = "" };
+
+                ModifyUser.Roles.Clear();
+                ModifyUser.Roles.Add(model);
+            }
+            else
+            {
+                snackbarService.ShowSnackbar(Severity.Error, "Nincs szerepkör kiválasztva!", MainLayout.pageWidth);
+                return;
+            }
+
+            ModifyUser.Email ??= "";
+            ModifyUser.Active = true;
+            ModifyUser.Guid = "";
+            ModifyUser.Modifier = Modosito;
+
+            ResultModel result = (ModifyUser.Id == 0)
+                ? await userService.AddUser(ModifyUser)
+                : await userService.ModifyUser(ModifyUser);
+
+            if (result.Success)
+            {
+                snackbarService.ShowSnackbar(Severity.Success,
+                    ModifyUser.Id == 0 ? "Felhasználó sikeresen létrehozva!" : "Felhasználó sikeresen módosítva!",
+                    MainLayout.pageWidth);
+
+                await MainLayout.RefreshLoggedUser();
+                MudDialog.Close(DialogResult.Ok<bool>(true));
+            }
+            else
+            {
+                snackbarService.ShowSnackbar(Severity.Error, result.ErrorMessage, MainLayout.pageWidth);
+            }
+        }
+        else
+        {
+            // összegyűjtött űrlaphibák megjelenítése, ha vannak
+            foreach (var err in formErrors.Where(e => !string.IsNullOrWhiteSpace(e)))
+                snackbarService.ShowSnackbar(Severity.Error, err, MainLayout.pageWidth);
+
+            await Task.Delay(500);
+            form.ResetValidation();
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// VALIDATION FUNCTIONS
+    /// </summary>
+    #region VALIDATION FUNCTIONS
+    private string FirstNameMatch(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "A keresztnév megadása kötelező.";
+        if (value.Length < 2 || value.Length > 20)
+            return "A keresztnév legalább 2, legfeljebb 20 karakter hosszú lehet.";
+        return String.Empty;
+    }
+
+    private string LastNameMatch(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "A vezetéknév megadása kötelező.";
+        if (value.Length < 2 || value.Length > 20)
+            return "A vezetéknév legalább 2, legfeljebb 20 karakter hosszú lehet.";
+        return String.Empty;
+    }
+
+    // Email opcionális: ha üres, OK; ha nem üres, ellenőrizzük a formátumot
+    private string EmailMatch(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        try
+        {
+            var attr = new System.ComponentModel.DataAnnotations.EmailAddressAttribute
+            {
+                ErrorMessage = "Az email formátuma érvénytelen."
+            };
+            return attr.IsValid(value) ? string.Empty : (attr.ErrorMessage ?? "Az email formátuma érvénytelen.");
+        }
+        catch
+        {
+            return "Az email formátuma érvénytelen.";
+        }
+    }
+
+    private string PasswordMatch(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            //return "A jelszó megadása kötelező.";
+            return String.Empty;
+        if (value.Length < 8 || value.Length > 20)
+            return "A jelszónak 8 és 20 karakter között kell lennie.";
+        if (!Regex.IsMatch(value, @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,20}$"))
+            return @"A jelszónak meg kell felelnie az alábbi követelményeknek!<br/>
+                <ul>
+                    <li>A jelszónak 8 és 20 karakter hosszúnak kell lennie</li>
+                    <li>A jelszónak tartalmaznia kell legalább egy számjegyet</li>
+                    <li>A jelszónak tartalmaznia kell legalább egy nagybetűt</li>
+                    <li>A jelszónak tartalmaznia kell legalább egy kisbetűt</li>
+                    <li>Tartalmaznia kell legalább egy speciális karaktert (pl: #,.,@, stb)</li>
+                </ul>";
+        return String.Empty;
+    }
+    #endregion
+
+    public void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+    #endregion
+}

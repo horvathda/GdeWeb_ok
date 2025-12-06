@@ -1,0 +1,83 @@
+[2025.11.06 12:30:58][ INNER EXCEPTION: Response status code does not indicate success: 500 (Internal Server Error). ( System.Net.Http.HttpRequestException: Response status code does not indicate success: 500 (Internal Server Error).
+   at System.Net.Http.HttpResponseMessage.EnsureSuccessStatusCode()
+   at GdeWebAPI.Services.HostedService.RunStreamAi(ILogService _logService) in C:\Users\jakab\OneDrive\VisualProjects\GdeWeb\GdeWebAPI\Services\HostedService.cs:line 164 )][RunStreamAi]
+[2025.11.10 11:11:00][ INNER EXCEPTION: Could not load file or assembly 'System.Configuration.ConfigurationManager, Version=0.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51'. The system cannot find the file specified. ( System.IO.FileNotFoundException: Could not load file or assembly 'System.Configuration.ConfigurationManager, Version=0.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51'. The system cannot find the file specified.
+File name: 'System.Configuration.ConfigurationManager, Version=0.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51'
+   at MediaToolkit.EngineBase..ctor()
+   at MediaToolkit.Engine..ctor()
+   at GdeWebAPI.Services.HostedService.SplitMediaFileIntoParts(ILogService _logService, CourseModel course) in C:\Users\jakab\OneDrive\VisualProjects\GdeWeb\GdeWebAPI\Services\HostedService.cs:line 461 )][SplitMediaFileIntoParts]
+[2025.12.04 11:22:55][ INNER EXCEPTION: The SMTP server requires a secure connection or the client was not authenticated. The server response was: 5.7.0 Authentication Required. For more information, go to ( System.Net.Mail.SmtpException: The SMTP server requires a secure connection or the client was not authenticated. The server response was: 5.7.0 Authentication Required. For more information, go to
+   at System.Net.Mail.MailCommand.CheckResponse(SmtpStatusCode statusCode, String response)
+   at System.Net.Mail.MailCommand.EndSend(IAsyncResult result)
+   at System.Net.Mail.SendMailAsyncResult.SendMailFromCompleted(IAsyncResult result)
+--- End of stack trace from previous location ---
+   at System.Net.Mail.SendMailAsyncResult.End(IAsyncResult result)
+   at System.Net.Mail.SmtpClient.SendMailCallback(IAsyncResult result)
+--- End of stack trace from previous location ---
+   at GdeWebDB.Services.MailService.SendMessage(EmailModel model, Stream stream, String AttachmentName, String AttachmentMediaType) in D:\GDE\Webalkalmazás fejlesztés\GdeWeb\GdeWebDB\Services\MailService.cs:line 174 )][SendMessage]
+[2025.12.04 11:31:01][ INNER EXCEPTION: The SMTP server requires a secure connection or the client was not authenticated. The server response was: 5.7.0 Authentication Required. For more information, go to ( System.Net.Mail.SmtpException: The SMTP server requires a secure connection or the client was not authenticated. The server response was: 5.7.0 Authentication Required. For more information, go to
+   at System.Net.Mail.MailCommand.CheckResponse(SmtpStatusCode statusCode, String response)
+   at System.Net.Mail.MailCommand.EndSend(IAsyncResult result)
+   at System.Net.Mail.SendMailAsyncResult.SendMailFromCompleted(IAsyncResult result)
+--- End of stack trace from previous location ---
+   at System.Net.Mail.SendMailAsyncResult.End(IAsyncResult result)
+   at System.Net.Mail.SmtpClient.SendMailCallback(IAsyncResult result)
+--- End of stack trace from previous location ---
+   at GdeWebDB.Services.MailService.SendMessage(EmailModel model, Stream stream, String AttachmentName, String AttachmentMediaType) in D:\GDE\Webalkalmazás fejlesztés\GdeWeb\GdeWebDB\Services\MailService.cs:line 174 )][SendMessage]
+[2025.12.04 11:54:09][ INNER EXCEPTION: The SMTP server requires a secure connection or the client was not authenticated. The server response was: 5.7.0 Authentication Required. For more information, go to ( System.Net.Mail.SmtpException: The SMTP server requires a secure connection or the client was not authenticated. The server response was: 5.7.0 Authentication Required. For more information, go to
+   at System.Net.Mail.MailCommand.CheckResponse(SmtpStatusCode statusCode, String response)
+   at System.Net.Mail.MailCommand.EndSend(IAsyncResult result)
+   at System.Net.Mail.SendMailAsyncResult.SendMailFromCompleted(IAsyncResult result)
+--- End of stack trace from previous location ---
+   at System.Net.Mail.SendMailAsyncResult.End(IAsyncResult result)
+   at System.Net.Mail.SmtpClient.SendMailCallback(IAsyncResult result)
+--- End of stack trace from previous location ---
+   at GdeWebDB.Services.MailService.SendMessage(EmailModel model, Stream stream, String AttachmentName, String AttachmentMediaType) in D:\GDE\Webalkalmazás fejlesztés\GdeWeb\GdeWebDB\Services\MailService.cs:line 174 )][SendMessage]
+[2025.12.04 11:54:23][ INNER EXCEPTION: The SMTP server requires a secure connection or the client was not authenticated. The server response was: 5.7.0 Authentication Required. For more information, go to ( System.Net.Mail.SmtpException: The SMTP server requires a secure connection or the client was not authenticated. The server response was: 5.7.0 Authentication Required. For more information, go to
+   at System.Net.Mail.MailCommand.CheckResponse(SmtpStatusCode statusCode, String response)
+   at System.Net.Mail.MailCommand.EndSend(IAsyncResult result)
+   at System.Net.Mail.SendMailAsyncResult.SendMailFromCompleted(IAsyncResult result)
+--- End of stack trace from previous location ---
+   at System.Net.Mail.SendMailAsyncResult.End(IAsyncResult result)
+   at System.Net.Mail.SmtpClient.SendMailCallback(IAsyncResult result)
+--- End of stack trace from previous location ---
+   at GdeWebDB.Services.MailService.SendMessage(EmailModel model, Stream stream, String AttachmentName, String AttachmentMediaType) in D:\GDE\Webalkalmazás fejlesztés\GdeWeb\GdeWebDB\Services\MailService.cs:line 174 )][SendMessage]
+[2025.12.04 11:54:28][ INNER EXCEPTION: The SMTP server requires a secure connection or the client was not authenticated. The server response was: 5.7.0 Authentication Required. For more information, go to ( System.Net.Mail.SmtpException: The SMTP server requires a secure connection or the client was not authenticated. The server response was: 5.7.0 Authentication Required. For more information, go to
+   at System.Net.Mail.MailCommand.CheckResponse(SmtpStatusCode statusCode, String response)
+   at System.Net.Mail.MailCommand.EndSend(IAsyncResult result)
+   at System.Net.Mail.SendMailAsyncResult.SendMailFromCompleted(IAsyncResult result)
+--- End of stack trace from previous location ---
+   at System.Net.Mail.SendMailAsyncResult.End(IAsyncResult result)
+   at System.Net.Mail.SmtpClient.SendMailCallback(IAsyncResult result)
+--- End of stack trace from previous location ---
+   at GdeWebDB.Services.MailService.SendMessage(EmailModel model, Stream stream, String AttachmentName, String AttachmentMediaType) in D:\GDE\Webalkalmazás fejlesztés\GdeWeb\GdeWebDB\Services\MailService.cs:line 174 )][SendMessage]
+[2025.12.04 16:03:24][ INNER EXCEPTION: SQLite Error 1: 'no such table: dbo.A_CHATHISTORY'. ( Microsoft.Data.Sqlite.SqliteException (0x80004005): SQLite Error 1: 'no such table: dbo.A_CHATHISTORY'.
+   at Microsoft.Data.Sqlite.SqliteException.ThrowExceptionForRC(Int32 rc, sqlite3 db)
+   at Microsoft.Data.Sqlite.SqliteCommand.PrepareAndEnumerateStatements()+MoveNext()
+   at Microsoft.Data.Sqlite.SqliteCommand.GetStatements()+MoveNext()
+   at Microsoft.Data.Sqlite.SqliteDataReader.NextResult()
+   at Microsoft.Data.Sqlite.SqliteCommand.ExecuteReader(CommandBehavior behavior)
+   at Microsoft.Data.Sqlite.SqliteCommand.ExecuteReader()
+   at Microsoft.Data.Sqlite.SqliteCommand.ExecuteNonQuery()
+   at System.Data.Common.DbCommand.ExecuteNonQueryAsync(CancellationToken cancellationToken)
+--- End of stack trace from previous location ---
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteNonQueryAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteNonQueryAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteNonQueryAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(DatabaseFacade databaseFacade, String sql, IEnumerable`1 parameters, CancellationToken cancellationToken)
+   at GdeWebDB.Services.UserService.DeleteUser(UserModel p) in D:\GDE\Webalkalmazás fejlesztés\GdeWeb\GdeWebDB\Services\UserService.cs:line 297 )][DeleteUser]
+[2025.12.06 14:11:39][ INNER EXCEPTION: SQLite Error 1: 'no such table: dbo.A_CHATHISTORY'. ( Microsoft.Data.Sqlite.SqliteException (0x80004005): SQLite Error 1: 'no such table: dbo.A_CHATHISTORY'.
+   at Microsoft.Data.Sqlite.SqliteException.ThrowExceptionForRC(Int32 rc, sqlite3 db)
+   at Microsoft.Data.Sqlite.SqliteCommand.PrepareAndEnumerateStatements()+MoveNext()
+   at Microsoft.Data.Sqlite.SqliteCommand.GetStatements()+MoveNext()
+   at Microsoft.Data.Sqlite.SqliteDataReader.NextResult()
+   at Microsoft.Data.Sqlite.SqliteCommand.ExecuteReader(CommandBehavior behavior)
+   at Microsoft.Data.Sqlite.SqliteCommand.ExecuteReader()
+   at Microsoft.Data.Sqlite.SqliteCommand.ExecuteNonQuery()
+   at System.Data.Common.DbCommand.ExecuteNonQueryAsync(CancellationToken cancellationToken)
+--- End of stack trace from previous location ---
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteNonQueryAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteNonQueryAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteNonQueryAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRawAsync(DatabaseFacade databaseFacade, String sql, IEnumerable`1 parameters, CancellationToken cancellationToken)
+   at GdeWebDB.Services.UserService.DeleteUser(UserModel p) in C:\Users\horva\Downloads\GdeWeb-firefox (1)\GdeWeb\GdeWebDB\Services\UserService.cs:line 297 )][DeleteUser]

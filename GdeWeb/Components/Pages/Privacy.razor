@@ -1,0 +1,145 @@
+﻿@page "/privacy"
+
+@using GdeWeb.Components.Layout
+@using GdeWeb.Interfaces
+@using GdeWeb.Services
+@using GdeWebModels
+@using System.ComponentModel.DataAnnotations
+@using System.Text.RegularExpressions
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject IJSRuntime jsRuntime
+@inject IAuthService authService
+@inject ISnackbarService snackbarService
+@inject NavigationManager navigationManager
+@inject AuthenticationStateProvider authenticationStateProvider
+
+<style>
+    #unique_id_scroll_section {
+        height: calc(100dvh - 65px - 24px - 100px); /* a headeredhez igazítsd */
+        min-height: 0; /* flex gyerekeknél fontos a túlcsordulás elkerülésére */
+        overflow: auto;
+    }
+
+    .mud-card-content {
+        flex-grow: 1;
+        padding: 0px;
+    }
+</style>
+
+<PageTitle>Privacy Policy</PageTitle>
+
+<div class="main-page container p-3">
+    @if (!PageLoading)
+    {
+        <!-- BODY -->
+        <BlazorAnimate.Animate Animation="Animations.ZoomIn" Delay="TimeSpan.FromSeconds(MainLayout.animationDelay)" Duration="TimeSpan.FromSeconds(MainLayout.animationDuration)" style="height: 100%">
+
+            <MudGrid id="unique_id_scroll_section" Justify="Justify.SpaceEvenly" Spacing="0">
+
+                <MudItem xs="12" sm="12" md="12" lg="12" xl="12" xxl="12" Style="align-content: center; text-align: center;">
+
+                    <MudCard Elevation="0" Class="card-full">
+                        <MudCardMedia Image="img/favicon.png" Height="60" Style="width: 60px; margin-left: auto; margin-right: auto;" />
+                        <MudCardContent>
+
+                            <MudCard Elevation="0" Class="mt-3" Style="text-align: left; background-color: transparent;">
+                                <MudCardContent>
+
+                                    @((MarkupString)@"
+<div style='font-family: Arial, sans-serif; line-height:1.6; color:#222;'>
+
+    <h1 style='text-align:center; font-size:24px; text-transform:uppercase; margin-bottom:20px;'>
+        ADATKEZELÉSI TÁJÉKOZTATÓ
+    </h1>
+
+</div>
+                                ")
+
+                                </MudCardContent>
+                            </MudCard>
+
+                        </MudCardContent>
+                    </MudCard>
+
+                    <MudScrollToTop TopOffset="100"
+                                    OnScroll="OnScroll"
+                                    Selector="#unique_id_scroll_section"
+                                    VisibleCssClass="visible absolute"
+                                    HiddenCssClass="invisible">
+                        <MudIconButton Variant="Variant.Filled" Icon="@Icons.Material.Filled.ArrowUpward" Color="Color"></MudIconButton>
+                    </MudScrollToTop>
+
+                </MudItem>
+
+            </MudGrid>
+
+        </BlazorAnimate.Animate>
+    }
+    else
+    {
+        <!-- LOADING -->
+        <div class="loading-center">
+            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    public MainLayout MainLayout { get; set; } = default!;
+
+    // LOADING PARAMETERS
+    private bool PageLoading = true; // true
+
+    /// <summary>
+    /// PAGE LOAD
+    /// </summary>
+    #region PAGE LOAD
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await Task.Delay(1);
+            base.OnInitialized();
+        }
+        catch (Exception ex)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt a betöltés során: {ex.Message.ToString()}", MainLayout.pageWidth);
+        }
+
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Page load end
+            await Task.Delay(500);
+            PageLoading = false;
+
+            StateHasChanged();
+        }
+    }
+    #endregion
+
+    /// <summary>
+    /// SCROLL FUNCTIONS
+    /// </summary>
+    #region SCROLL FUNCTIONS
+    Color Color = Color.Success;
+    private void OnScroll(ScrollEventArgs e)
+    {
+        Color = (e.FirstChildBoundingClientRect.Top * -1) switch
+        {
+            var x when x < 500 => Color.Primary,
+            //var x when x < 1500 => Color.Secondary,
+            //var x when x < 2500 => Color.Tertiary,
+            _ => Color.Primary // Color.Error
+        };
+    }
+    #endregion
+
+    
+}

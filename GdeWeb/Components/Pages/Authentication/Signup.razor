@@ -1,0 +1,596 @@
+﻿@page "/signup"
+@attribute [AllowAnonymous]
+
+@using GdeWeb.Components.Layout
+@using GdeWeb.Interfaces
+@using GdeWeb.Services
+@using GdeWebModels
+@using System.ComponentModel.DataAnnotations
+@using System.Text.RegularExpressions
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Globalization
+
+@inject IJSRuntime JSRuntime
+@inject IAuthService authService
+@inject IUserService userService
+@inject ISnackbarService snackbarService
+@inject NavigationManager navigationManager
+@inject AuthenticationStateProvider authenticationStateProvider
+
+<style>
+    .footer {
+        display: none;
+    }
+
+    .mud-tabs-tabbar {
+        display: none;
+    }
+
+    .mud-popover:has(.mud-picker) {
+        position: fixed !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%,-50%) !important;
+    }
+
+    .mud-list-item {
+        padding-top: 2px;
+        padding-bottom: 2px;
+    }
+
+    .wait-cursor {
+        cursor: wait !important;
+    }
+
+    .mud-picker-datepicker-toolbar .mud-button-year {
+        display: none;
+    }
+
+    .fix-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0px;
+        right: 0px;
+        width: 100%;
+        z-index: 100;
+    }
+
+    /* A MudItem legyen "vágó" keret */
+    .image-wrap {
+        position: relative;
+        /* VÁLASSZ EGYET a két magasság-koncepció közül: */
+        /* 1) Töltse ki a viewport magasságát: */
+        /* height: 100vh; */
+        /* 2) VAGY: Töltse ki a szülő eleme magasságát:
+             height: 100%;
+             (ehhez a szülőknek is meg kell adni a magasságot, pl. a MudGrid-nek/fő konténernek) */
+
+        overflow: hidden; /* jobbra (és minden irányba) levág */
+    }
+
+    /* A kép balra rögzítve, magasságban mindig kitölt */
+    .image-fill-left {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%; /* mindig kitölti a konténer magasságát */
+        width: auto; /* arányt tart, szélesség nőhet a konténeren túl */
+        display: block; /* inline gap-ek elkerülése */
+    }
+
+    /* A kép középre igazítva, magasságot kitöltve */
+    .image-fill-center {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        height: 100%;
+        min-width: 100%;
+        width: auto;
+        transform: translate(-50%, -50%); /* középre helyezés */
+        display: block;
+    }
+
+    .mud-card-content {
+        align-content: center;
+    }
+</style>
+
+<PageTitle>Regisztráció</PageTitle>
+
+<div class="main-page container-center">
+    @if (!PageLoading)
+    {
+        <!-- BODY -->
+        <MudGrid Justify="Justify.SpaceEvenly" Class="pa-0 h-100" Spacing="0">
+
+            <MudItem xs="0" sm="0" md="6" lg="8" xl="9" xxl="10" Style="align-content: center; text-align: center;" Class="image-wrap">
+
+                <BlazorAnimate.Animate Animation="Animations.Fade" Delay="TimeSpan.FromSeconds(MainLayout.animationDelay)" Duration="TimeSpan.FromSeconds(MainLayout.animationDuration)" style="height: 100%">
+                    <MudImage Src="img/auth_ai_large.jpg" Alt="AI" Elevation="25" Class="image-fill-center" />
+                </BlazorAnimate.Animate>
+
+            </MudItem>
+
+            <MudItem xs="12" sm="12" md="6" lg="4" xl="3" xxl="2" Style="align-content: center; text-align: center;">
+
+                <BlazorAnimate.Animate Animation="Animations.ZoomIn" Delay="TimeSpan.FromSeconds(MainLayout.animationDelay)" Duration="TimeSpan.FromSeconds(MainLayout.animationDuration)" style="height: 100%">
+
+                    <MudCard Elevation="0" Class="card-max h-100">
+                        <MudCardContent>
+
+                            <MudForm Model="@model" @ref="form" @bind-Errors="@errors">
+
+                                <MudTabs SliderAnimation="false" @bind-ActivePanelIndex="@currentTabIndex" Class="sliding-tabs">
+
+                                    <MudTabPanel Text="Tab One" Disabled="isLoading">
+
+                                        <MudText Align="Align.Left" Typo="Typo.h1" Class="card-title" Color="Color.Secondary">
+                                            Regisztráció
+                                        </MudText>
+
+                                        <MudText Align="Align.Left" Typo="Typo.h5" Class="card-subtitle" Style="margin-bottom: 0px;">
+                                            Kérem adja meg email címét és választott jelszavát.
+                                        </MudText>
+
+                                        <MudText Align="Align.Left" Typo="Typo.h3" Class="card-subtitle-question" Style="margin-bottom: 40px;">
+                                            @(" ")
+                                        </MudText>
+
+                                        <MudTextField T="string" Class="card-input" @bind-Value="@model.Email" Label="E-mail cím megadása" Variant="Variant.Text"
+                                                      Required="@required" RequiredError="Az e-mail cím megadása kötelező." OnlyValidateIfDirty="true" ErrorText=""
+                                                      Validation="@(new EmailAddressAttribute() { ErrorMessage = "Az e-mail cím formátuma érvénytelen." })" Disabled="isLoading"></MudTextField>
+
+                                        <MudTextField T="string" Class="card-input" @bind-Value="@model.Password" Label="Jelszó megadása" Variant="Variant.Text"
+                                                      Required="@required" InputType="@inputPasswordType" Adornment="Adornment.End" AdornmentColor="Color.Primary"
+                                                      AdornmentIcon="@(inputPasswordType == InputType.Password ? @Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                                                      OnAdornmentClick="@(() => ChangeInputPasswordType())" OnlyValidateIfDirty="true" ErrorText=""
+                                                      Validation="@(new Func<string, string>(PasswordMatch))" Disabled="isLoading"></MudTextField>
+
+                                        <MudTextField T="string" Class="card-input" @bind-Value="@model.ConfirmPassword" Label="Jelszó megerősítése" Variant="Variant.Text"
+                                                      Required="@required" InputType="@inputConfirmationPasswordType" Adornment="Adornment.End" AdornmentColor="Color.Primary"
+                                                      AdornmentIcon="@(inputConfirmationPasswordType == InputType.Password ? @Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff)"
+                                                      OnAdornmentClick="@(() => ChangeInputConfirmPasswordType())" OnlyValidateIfDirty="true" ErrorText=""
+                                                      Validation="@(new Func<string, string>(ConfirmPasswordMatch))" Disabled="isLoading"></MudTextField>
+
+                                        <div class="d-flex" style="text-align: center; width: 100%;">
+                                            <div style="align-items: center; margin-left: auto; margin-right: auto; display: flex; margin-top: 1rem;">
+                                                <MudIcon Icon="@Icons.Material.TwoTone.Shield" Title="Shield" />
+                                                <MudText Align="Align.Center" Typo="Typo.body1" Class="card-data">Minden adat bizalmas, ennek megfelelően kezeljük.</MudText>
+                                            </div>
+                                        </div>
+
+                                        <MudGrid Justify="Justify.SpaceEvenly" Spacing="1" Style="margin-top: 30px;">
+
+                                            <MudItem xs="6" sm="6" md="6" lg="6" xl="6" xxl="6" Style="align-content: center; text-align: center;">
+
+                                                @* <MudButton Class="card-button" Variant="Variant.Filled" Color="Color.Primary" DropShadow="true" OnClick="@(() => HandleTabChange(currentTabIndex - 1))">Back</MudButton> *@
+
+                                            </MudItem>
+
+                                            <MudItem xs="6" sm="6" md="6" lg="6" xl="6" xxl="6" Style="align-content: center; text-align: center;">
+
+                                                <MudButton Class="card-button" Variant="Variant.Filled" Color="Color.Primary" DropShadow="true" OnClick="@(() => HandleTabChange(currentTabIndex + 1))" Disabled="isLoading">Tovább</MudButton>
+
+                                            </MudItem>
+
+                                        </MudGrid>
+
+                                    </MudTabPanel>
+
+                                    <MudTabPanel Text="Tab Two" Disabled="isLoading">
+
+                                        <MudText Align="Align.Left" Typo="Typo.h1" Class="card-title" Color="Color.Secondary">
+                                            Regisztráció
+                                        </MudText>
+
+                                        <MudText Align="Align.Left" Typo="Typo.h5" Class="card-subtitle" Style="margin-bottom: 0px;">
+                                            Kérem adja meg nevét, nemét és születési idejét.
+                                        </MudText>
+
+                                        <MudText Align="Align.Left" Typo="Typo.h3" Class="card-subtitle-question" Style="margin-bottom: 40px;">
+                                            @(" ")
+                                        </MudText>
+
+                                        <MudGrid Justify="Justify.SpaceEvenly" Spacing="1">
+
+                                            <MudItem xs="6" sm="6" md="6" lg="6" xl="6" xxl="6" Style="align-content: start; text-align: start;">
+
+                                                <MudTextField T="string" Class="card-input" @bind-Value="@model.FirstName" Label="Keresztnév" Variant="Variant.Text"
+                                                              Required="@required" OnlyValidateIfDirty="true" ErrorText=""
+                                                              Validation="@(new Func<string, string>(NameMatch))" Disabled="isLoading"></MudTextField>
+
+                                            </MudItem>
+
+                                            <MudItem xs="6" sm="6" md="6" lg="6" xl="6" xxl="6" Style="align-content: start; text-align: end; padding-top: 12px;">
+
+                                                <MudButtonGroup Color="Color.Inherit" Variant="Variant.Text" Class="card-group">
+                                                    <MudButton Class="card-group-left-button" Style="@(model.Sex == "Female" ? $"background-color: {@MainLayout.clrBlue}; color: white;" : $"background-color: {@MainLayout.appGray};")" OnClick="@(() => { model.Sex = "Female"; StateHasChanged(); })" Disabled="isLoading">Nő</MudButton>
+                                                    <MudButton Class="card-group-right-button" Style="@(model.Sex == "Male" ? $"background-color: {@MainLayout.clrBlue}; color: white;" : $"background-color: {@MainLayout.appGray};")" OnClick="@(() => { model.Sex = "Male"; StateHasChanged(); })" Disabled="isLoading">Férfi</MudButton>
+                                                </MudButtonGroup>
+
+                                            </MudItem>
+
+                                        </MudGrid>
+
+                                        <MudDatePicker OpenTo="OpenTo.Year" Class="card-input" FixMonth="1" FixDay="1" Label="Születés éve" @bind-Date="@model.Birthday" Culture="@CultureInfo.GetCultureInfo("hu-HU")" DateFormat="yyyy" TitleDateFormat="yyyy" MinDate="DateTime.Now.AddYears(-100)" MaxDate="DateTime.Now.AddYears(0)"
+                                                       Required="@required" ErrorText=""
+                                                       Validation="@(new Func<DateTime?, string>(BirthdayMatch))" Disabled="isLoading" />
+
+                                        <div class="d-flex" style="text-align: center; width: 100%;">
+                                            <div style="align-items: center; margin-left: auto; margin-right: auto; display: flex; margin-top: 1rem;">
+                                                <MudIcon Icon="@Icons.Material.TwoTone.Shield" Title="Shield" />
+                                                <MudText Align="Align.Center" Typo="Typo.body1" Class="card-data">Minden adat bizalmas, ennek megfelelően kezeljük.</MudText>
+                                            </div>
+                                        </div>
+
+                                        <MudGrid Justify="Justify.SpaceEvenly" Spacing="1" Style="margin-top: 30px;">
+
+                                            <MudItem xs="6" sm="6" md="6" lg="6" xl="6" xxl="6" Style="align-content: center; text-align: center;">
+
+                                                <MudButton Class="card-button" Variant="Variant.Filled" Color="Color.Primary" DropShadow="true" OnClick="@(() => HandleTabChange(currentTabIndex - 1))" Disabled="isLoading">Vissza</MudButton>
+
+                                            </MudItem>
+
+                                            <MudItem xs="6" sm="6" md="6" lg="6" xl="6" xxl="6" Style="align-content: center; text-align: center;">
+
+                                                <MudButton Class="card-button" Variant="Variant.Filled" Color="Color.Primary" DropShadow="true" OnClick="@Submits" Disabled="isLoading">Regisztráció</MudButton>
+
+                                            </MudItem>
+
+                                        </MudGrid>
+
+                                    </MudTabPanel>
+
+                                </MudTabs>
+
+                                <MudText Align="Align.Left" Typo="Typo.body1" Class="card-links">
+                                    @($"Step {currentTabIndex + 1} of 2")
+                                    <MudProgressLinear Color="Color.Primary" Size="Size.Medium" Value="@(currentTabIndex + 1)" Class="my-7" Min="0" Max="2" />
+                                </MudText>
+
+                                <MudText Align="Align.Left" Typo="Typo.body1" Class="card-links">
+                                    Már van fiókja?
+                                    <MudLink OnClick="@(() => MainLayout.GoTo("signin"))" Underline="Underline.Always" Color="Color.Primary" Typo="Typo.body1" Disabled="isLoading" Class="card-link">Kattintson ide</MudLink>
+                                </MudText>
+
+                                <MudText Align="Align.Left" Typo="Typo.body1" Class="card-links">
+                                    A regisztrációval elfogadja a
+                                    <MudLink OnClick="@(() => MainLayout.GoTo("privacy"))" Underline="Underline.Always" Color="Color.Primary" Typo="Typo.body1" Disabled="isLoading" Class="card-link">Felhasználási feltételeket</MudLink>
+                                </MudText>
+
+                            </MudForm>
+
+                        </MudCardContent>
+                    </MudCard>
+
+                </BlazorAnimate.Animate>
+
+            </MudItem>
+
+        </MudGrid>
+
+    }
+    else
+    {
+        <!-- LOADING -->
+        <div class="loading-center">
+            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" />
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    public MainLayout MainLayout { get; set; } = default!;
+
+    // LOADING PARAMETERS
+    private bool PageLoading = true; // true
+
+    // CURRENT TAB INDEX
+    private int currentTabIndex = 0;
+
+    // FORM
+    private RegistrationModel model = new RegistrationModel();
+    private string[] errors = { };
+    private MudForm form = new MudForm();
+    private bool required { get; set; } = false;
+    private InputType inputPasswordType { get; set; } = InputType.Password;
+    private InputType inputConfirmationPasswordType { get; set; } = InputType.Password;
+
+    private DateTime regDate = DateTime.Now;
+    private string checkboxError = string.Empty;
+
+    private bool isLoading = false;
+
+    /// <summary>
+    /// PAGE LOAD
+    /// </summary>
+    #region PAGE LOAD
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await Task.Delay(1);
+            base.OnInitialized();
+        }
+        catch (Exception ex)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt a betöltés során: {ex.Message.ToString()}", MainLayout.pageWidth);
+        }
+
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            model.Birthday = regDate;
+
+            // Page load end
+            await Task.Delay(500);
+            PageLoading = false;
+
+            StateHasChanged();
+        }
+    }
+    #endregion
+
+
+    /// <summary>
+    /// TAB PAGE
+    /// </summary>
+    #region TAB PAGE
+    private async Task HandleTabChange(int newIndex)
+    {
+        await Task.Delay(1);
+
+        if (newIndex > currentTabIndex)
+        {
+            // Required validation
+            required = true;
+            StateHasChanged();
+            // Check if the current tab is valid before moving to the next one
+            await form.Validate();
+            if (!form.IsValid)
+            {
+                // If the form is not valid, do not change the tab
+                foreach (String error in errors)
+                {
+                    if (!string.IsNullOrEmpty(error))
+                    {
+                        snackbarService.ShowSnackbar(Severity.Error, error, MainLayout.pageWidth);
+                    }
+                }
+
+                await Task.Delay(1000); // Várakozás 1 másodpercig
+                required = false;
+                form.ResetValidation();
+                StateHasChanged();
+
+                return;
+            }
+        }
+
+        if (newIndex >= 0 && newIndex <= 4)
+        {
+            currentTabIndex = newIndex;
+            StateHasChanged();
+        }
+    }
+    #endregion
+
+
+    /// <summary>
+    /// BUTTON FUNCTIONS
+    /// </summary>
+    #region BUTTON FUNCTIONS
+    private async Task Submits()
+    {
+        try
+        {
+            isLoading = true;                // kurzor be
+            StateHasChanged();
+
+            // Required validation
+            required = true;
+            StateHasChanged();
+            await Task.Delay(100);
+
+            // run the standard Validation
+            await form.Validate();
+            // Fake a database async call to check if the user exists
+            await Task.Delay(100);
+            //Just for Testing trip validation
+            if (form.IsValid)
+            {
+                #region GET USER
+                UserModel newUser = new UserModel();
+
+                // Name split
+                newUser.FirstName = model.FirstName;
+                newUser.LastName = "";
+                if (model.FirstName.IndexOf(" ") != -1)
+                {
+                    newUser.FirstName = model.FirstName.Split(" ")[0].Trim();
+                    newUser.LastName = model.FirstName.Split(" ")[1].Trim();
+                }
+
+                newUser.Id = 0;
+                newUser.Guid = "";
+                newUser.Email = model.Email;
+                newUser.Password = model.Password;
+                // newUser.Editor = true;
+                newUser.Active = false;
+                newUser.Modifier = 1;
+
+                newUser.UserData = new UserDataModel();
+                newUser.UserData.Sex = model.Sex;
+                newUser.UserData.Birthday = model.Birthday.HasValue ? model.Birthday.Value : null;
+
+                newUser.Roles = new List
+                <RoleModel>()
+            {
+                new RoleModel()
+                {
+                    Id = 2,
+                    UserId = 0,
+                    Name = "Beginner",
+                    Result = new ResultModel()
+                    {
+                        Success = true,
+                        ErrorMessage = ""
+                    }
+                }
+            };
+
+                newUser.Result = new ResultModel()
+                {
+                    Success = true,
+                    ErrorMessage = ""
+                };
+
+                #endregion
+
+                ResultModel result = await userService.AddUser(newUser);
+                if (result.Success)
+                {
+                    // ResultModel resultData = await userService.SetUserData(newUser);
+                    snackbarService.ShowSnackbar(Severity.Success, "A regisztráció sikeres!<br/>Küldtünk egy e-mailt a megadott e-mail címre!<br/>Kérlek, kattints az e-mailben található linkre a regisztráció befejezéséhez!", MainLayout.pageWidth);
+                    await Task.Delay(3000);
+                    navigationManager.NavigateTo("/");
+                }
+                else
+                {
+                    snackbarService.ShowSnackbar(Severity.Error, result.ErrorMessage, MainLayout.pageWidth);
+                }
+            }
+            else
+            {
+                foreach (String error in errors)
+                {
+                    if (!string.IsNullOrEmpty(error))
+                    {
+                        snackbarService.ShowSnackbar(Severity.Error, error, MainLayout.pageWidth);
+                    }
+                }
+                await Task.Delay(1000); // Várakozás 1 másodpercig
+                form.ResetValidation();
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            snackbarService.ShowSnackbar(Severity.Error, $"Hiba történt a művelet során: {ex.Message.ToString()}", MainLayout.pageWidth);
+        }
+        finally
+        {
+            isLoading = false;              // kurzor ki
+            StateHasChanged();
+        }
+    }
+    #endregion
+
+
+    /// <summary>
+    /// VALIDATION FUNCTIONS
+    /// </summary>
+    #region VALIDATION FUNCTIONS
+    private string NameMatch(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "A keresztnév megadása kötelező.";
+        }
+        if (value.Length < 2 || value.Length > 20)
+            return "A keresztnév minimum 2, maximum 20 karakter hosszú lehet.";
+        return String.Empty;
+    }
+
+    private string PasswordMatch(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "A jelszó megadása kötelező.";
+        if (value.Length < 8 || value.Length > 20)
+            return "A jelszónak 8 és 20 karakter közöttinek kell lennie.";
+        if (!Regex.IsMatch(value, @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,20}$"))
+            return @"A jelszónak meg kell felelnie a következő követelményeknek!<br/>
+                <ul>
+                    <li>A jelszónak 8 és 20 karakter közötti hosszúságúnak kell lennie</li>
+                    <li>Tartalmaznia kell legalább egy számjegyet</li>
+                    <li>Tartalmaznia kell legalább egy nagybetűt</li>
+                    <li>Tartalmaznia kell legalább egy kisbetűt</li>
+                    <li>Tartalmaznia kell legalább egy speciális karaktert (pl: #,.,@, stb)</li>
+                </ul>";
+        return String.Empty;
+    }
+
+    private string ConfirmPasswordMatch(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "A jelszó megerősítése kötelező.";
+        if (value.Length < 8 || value.Length > 20)
+            return "A jelszónak minimum 8, maximum 20 karakter hosszúnak kell lennie.";
+        if (value != model.Password)
+            return "A jelszavaknak egyezniük kell.";
+        return String.Empty;
+    }
+
+    private async Task ChangeInputPasswordType()
+    {
+        await Task.Delay(1);
+        if (inputPasswordType == InputType.Password)
+            inputPasswordType = InputType.Text;
+        else
+            inputPasswordType = InputType.Password;
+    }
+
+    private async Task ChangeInputConfirmPasswordType()
+    {
+        await Task.Delay(1);
+        if (inputConfirmationPasswordType == InputType.Password)
+            inputConfirmationPasswordType = InputType.Text;
+        else
+            inputConfirmationPasswordType = InputType.Password;
+    }
+
+    private string BirthdayMatch(DateTime? value)
+    {
+        if (string.IsNullOrWhiteSpace(value.ToString()) || !value.HasValue)
+        {
+            return "A születési dátum megadása kötelező.";
+        }
+        if (value.Value.Year == regDate.Year && value.Value.Month == regDate.Month && value.Value.Day == regDate.Day)
+        {
+            return "Kérem adja meg születési dátumát!";
+        }
+        if (value < DateTime.Now.AddYears(-100) || value > DateTime.Now.AddYears(-10))
+            return "A születési dátumnak 10 és 100 év közötti életkort kell megadnia.";
+        return String.Empty;
+    }
+    #endregion
+
+
+    /// <summary>
+    /// REGISTRATION MODEL
+    /// </summary>
+    #region REGISTRATION MODEL
+    private class RegistrationModel
+    {
+        public string Email { get; set; } = String.Empty;
+
+        public string Password { get; set; } = String.Empty;
+
+        public string ConfirmPassword { get; set; } = String.Empty;
+
+        public string FirstName { get; set; } = String.Empty;
+
+        public string Sex { get; set; } = "Male";
+
+        public DateTime? Birthday { get; set; } = new DateTime(2000, 1, 1, 0, 0, 0);
+
+        public string School { get; set; } = String.Empty;
+    }
+    #endregion
+}
