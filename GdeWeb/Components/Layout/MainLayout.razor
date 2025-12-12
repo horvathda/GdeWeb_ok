@@ -75,78 +75,79 @@
 
     <MudLayout>
         <!-- Header -->
-        <MudAppBar Elevation="0" Dense="true" Class="py-2 appbar main_blue_bg" Style="@($"--menu-accent:{Color.Primary};")">
+                <MudAppBar Elevation="0" Dense="true" Class="py-2 appbar main_blue_bg" Style="@($"--menu-accent:{Color.Primary};")">
             <MudText Typo="Typo.h5" Class="font-bold">@(isMobile ? "GDE Edu AI" : "GDE Edu AI – Oktató platform")</MudText>
             <MudSpacer />
             @if (loggedUser.Id > 0)
             {
-                <MudAvatar Size="Size.Medium" Variant="Variant.Outlined" Style="cursor: pointer; margin-right: 4px;">
-                    <MudIcon Icon="@Icons.Material.Filled.Home" Class="menu-icon" @onclick="@(() => GoTo("/dashboard"))" />
-                </MudAvatar>
+                    <MudAvatar Size="Size.Medium" Variant="Variant.Outlined" Style="cursor: pointer; margin-right: 4px;">
+                        <MudIcon Icon="@Icons.Material.Filled.Home" Class="menu-icon" @onclick="@(() => GoTo("/dashboard"))" />
+                    </MudAvatar>
 
-                <MudAvatar Size="Size.Medium" Variant="Variant.Outlined" Style="cursor: pointer; margin-right: 4px;">
-                    <MudIcon Icon="@Icons.Material.Filled.ModelTraining" Class="menu-icon" @onclick="@(() => GoTo($"/quiz?cid=0"))" />
-                </MudAvatar>
+                    <MudAvatar Size="Size.Medium" Variant="Variant.Outlined" Style="cursor: pointer; margin-right: 4px;">
+                        <MudIcon Icon="@Icons.Material.Filled.ModelTraining" Class="menu-icon" @onclick="@(() => GoTo($"/quiz?cid=0"))" />
+                    </MudAvatar>
 
-                <MudMenu>
-                    <ActivatorContent>
-                        <MudAvatar Size="Size.Medium" Variant="Variant.Outlined" Style="cursor: pointer;">
-                            <MudImage Src="img/profile.png"></MudImage>
-                        </MudAvatar>
-                    </ActivatorContent>
-                    <ChildContent>
-                        <MudMenuItem Icon="@Icons.Material.TwoTone.PersonOutline" OnClick="@(() => GoTo("/profile"))">Profil</MudMenuItem>
-                        @if (loggedUser.Roles.Any(r => r.Name == "Admin"))
-                        {
-                            <MudMenuItem Icon="@Icons.Material.TwoTone.Settings" OnClick="@(() => GoTo("/settings"))">Beállítások</MudMenuItem>
-                        }
-                        <MudMenuItem Icon="@Icons.Material.TwoTone.InstallMobile" OnClick="OpenUpdateDialog">@(isMobile ? "Frissítés" : "Letöltés")</MudMenuItem>
-                        <MudMenuItem Icon="@Icons.Material.TwoTone.ExitToApp" OnClick="Logout">Kijelentkezés</MudMenuItem>
-                    </ChildContent>
-                </MudMenu>
+                    <MudMenu>
+                        <ActivatorContent>
+                            <MudAvatar Size="Size.Medium" Variant="Variant.Outlined" Style="cursor: pointer;">
+                                <MudImage Src="@GetProfileImage()" />
+                            </MudAvatar>
+                        </ActivatorContent>
+                        <ChildContent>
+                            <MudMenuItem Icon="@Icons.Material.TwoTone.PersonOutline" OnClick="@(() => GoTo("/profile"))">Profil</MudMenuItem>
+                            @if (loggedUser.Roles.Any(r => r.Name == "Admin"))
+                            {
+                                    <MudMenuItem Icon="@Icons.Material.TwoTone.Settings" OnClick="@(() => GoTo("/settings"))">Beállítások</MudMenuItem>
+                            }
+                            <MudMenuItem Icon="@Icons.Material.TwoTone.InstallMobile" OnClick="OpenUpdateDialog">@(isMobile ? "Frissítés" : "Letöltés")</MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.TwoTone.ExitToApp" OnClick="Logout">Kijelentkezés</MudMenuItem>
+                        </ChildContent>
+                    </MudMenu>
             }
             else
             {
-                @if (isMobile && (pageWidth < pageHeight))
-                {
-                    @if (homePage)
+                    @if (isMobile && (pageWidth < pageHeight))
                     {
-                        <MudMenu>
-                            <ActivatorContent>
-                                <MudAvatar Size="Size.Medium" Variant="Variant.Outlined" Style="cursor: pointer;">
-                                    <MudIcon Icon="@Icons.Material.Filled.Input" Class="menu-icon" @onclick="@(() => GoTo("/signin"))" />
-                                </MudAvatar>
-                            </ActivatorContent>
-                        </MudMenu>
+                            @if (homePage)
+                            {
+                                    <MudMenu>
+                                        <ActivatorContent>
+                                            <MudAvatar Size="Size.Medium" Variant="Variant.Outlined" Style="cursor: pointer;">
+                                                <MudIcon Icon="@Icons.Material.Filled.Input" Class="menu-icon" @onclick="@(() => GoTo("/signin"))" />
+                                            </MudAvatar>
+                                        </ActivatorContent>
+                                    </MudMenu>
+                            }
+                            else
+                            {
+                                    <MudMenu>
+                                        <ActivatorContent>
+                                            <MudAvatar Size="Size.Medium" Variant="Variant.Outlined" Style="cursor: pointer;">
+                                                <MudIcon Icon="@Icons.Material.Filled.Home" Class="menu-icon" @onclick="@(() => GoTo("/"))" />
+                                            </MudAvatar>
+                                        </ActivatorContent>
+                                    </MudMenu>
+                            }
                     }
                     else
                     {
-                        <MudMenu>
-                            <ActivatorContent>
-                                <MudAvatar Size="Size.Medium" Variant="Variant.Outlined" Style="cursor: pointer;">
-                                    <MudIcon Icon="@Icons.Material.Filled.Home" Class="menu-icon" @onclick="@(() => GoTo("/"))" />
-                                </MudAvatar>
-                            </ActivatorContent>
-                        </MudMenu>
+                            @if (homePage)
+                            {
+                                    <MudButton Variant="Variant.Outlined" Class="rounded-2xl button-clr" OnClick="@(() => GoTo("/signin"))">
+                                        Belépés / Regisztráció
+                                    </MudButton>
+                            }
+                            else
+                            {
+                                    <MudButton Variant="Variant.Outlined" Class="rounded-2xl button-clr" OnClick="@(() => GoTo("/"))">
+                                        Kezdőoldal
+                                    </MudButton>
+                            }
                     }
-                }
-                else
-                {
-                    @if (homePage)
-                    {
-                        <MudButton Variant="Variant.Outlined" Class="rounded-2xl button-clr" OnClick="@(() => GoTo("/signin"))">
-                            Belépés / Regisztráció
-                        </MudButton>
-                    }
-                    else
-                    {
-                        <MudButton Variant="Variant.Outlined" Class="rounded-2xl button-clr" OnClick="@(() => GoTo("/"))">
-                            Kezdőoldal
-                        </MudButton>
-                    }
-                }
             }
         </MudAppBar>
+
 
         <!-- Content -->
         <MudMainContent Class="main-content p-0">
@@ -188,6 +189,14 @@
 
     // HOME PAGE
     private bool homePage = true;
+
+    private string GetProfileImage()
+    {
+        if (!string.IsNullOrWhiteSpace(loggedUser.ProfileImageUrl))
+            return loggedUser.ProfileImageUrl;
+
+        return "img/profile.png";
+    }
 
     // THEME
     public MudTheme lightTheme = new MudTheme()
@@ -249,6 +258,7 @@
                 FontWeight = "600",
                 FontSize = "clamp(0.8rem, 1.5vw, 1rem)"
             }
+
         }
     };
 

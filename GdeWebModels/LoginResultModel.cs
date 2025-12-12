@@ -25,6 +25,9 @@ namespace GdeWebModels
         [SwaggerSchema("Login eredmény aktív")]
         public bool Active { get; set; } = false;
 
+        [SwaggerSchema("Felhasználó profilképének URL-je]")]
+        public string ProfileImageUrl { get; set; } = string.Empty;
+
         [SwaggerSchema("Művelet sikeressége")]
         public ResultModel Result { get; set; } = new ResultModel();
     }

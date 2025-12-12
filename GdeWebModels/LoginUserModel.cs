@@ -33,10 +33,13 @@ namespace GdeWebModels
         [SwaggerSchema("Művelet sikeressége")]
         public ResultModel Result { get; set; } = new ResultModel();
 
+        [SwaggerSchema("Felhasználó profilképének URL-je]")]
+        public string ProfileImageUrl { get; set; } = string.Empty;
+
 
         [SwaggerSchema("Felhasználó személyes adatainak json string formátuma")]
         // Property to hold the JSON string in the database
-        [Newtonsoft.Json.JsonIgnore] // Ezt add hozzá
+        [Newtonsoft.Json.JsonIgnore] 
         public string UserDataJson
         {
             get => String.Empty;

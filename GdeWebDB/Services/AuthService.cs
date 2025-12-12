@@ -43,29 +43,67 @@ namespace GdeWebDB.Services
 
                 var user = await _db.T_USER.FirstOrDefaultAsync(u => u.EMAIL == email);
 
+                const int defaultRoleId = 2;   // alapértelmezett "User" szerep
+
                 if (user == null)
                 {
+                    // ÚJ USER – itt már elmentjük a Google profilképet is
                     user = new User
                     {
                         EMAIL = email,
                         FIRSTNAME = firstName,
                         LASTNAME = lastName,
                         ACTIVE = true,
-                        GUID = Guid.NewGuid() 
+                        GUID = Guid.NewGuid(),
+                        PROFILEIMAGEURL = string.IsNullOrWhiteSpace(picture) ? null : picture,
+                        MODIFICATIONDATE = DateTime.UtcNow
                     };
 
                     _db.T_USER.Add(user);
                     await _db.SaveChangesAsync();
-                }
-                else
-                {
-                    user.FIRSTNAME = firstName;
-                    user.LASTNAME = lastName;
-                    user.ACTIVE = true;
+
+                    // Alapértelmezett szerep: USER (ROLEID = 2)
+                    _db.K_USER_ROLES.Add(new UserRole
+                    {
+                        USERID = user.USERID,
+                        ROLEID = defaultRoleId,
+                        CREATOR = user.USERID,          // vagy 0, ha jobban tetszik
+                        CREATINGDATE = DateTime.UtcNow
+                    });
 
                     await _db.SaveChangesAsync();
                 }
+                else
+                {
+                    // LÉTEZŐ USER FRISSÍTÉSE
+                    user.FIRSTNAME = firstName;
+                    user.LASTNAME = lastName;
+                    user.ACTIVE = true;
+                    user.MODIFICATIONDATE = DateTime.UtcNow;
 
+                    // Ha a Google most is adott képet, frissítjük
+                    if (!string.IsNullOrWhiteSpace(picture))
+                        user.PROFILEIMAGEURL = picture;
+
+                    await _db.SaveChangesAsync();
+
+                    // Ha valamiért még nincs szerepe, itt is adjunk neki egyet
+                    bool hasAnyRole = await _db.K_USER_ROLES.AnyAsync(r => r.USERID == user.USERID);
+                    if (!hasAnyRole)
+                    {
+                        _db.K_USER_ROLES.Add(new UserRole
+                        {
+                            USERID = user.USERID,
+                            ROLEID = defaultRoleId,
+                            CREATOR = user.USERID,
+                            CREATINGDATE = DateTime.UtcNow
+                        });
+
+                        await _db.SaveChangesAsync();
+                    }
+                }
+
+                // SZEREPEK BETÖLTÉSE
                 var roles = await _db.K_USER_ROLES
                     .Where(ur => ur.USERID == user.USERID)
                     .Where(ur => ur.Role != null && !string.IsNullOrEmpty(ur.Role.ROLENAME))
@@ -96,6 +134,7 @@ namespace GdeWebDB.Services
                 return new LoginResultModel { Result = ResultTypes.UnexpectedError };
             }
         }
+
 
 
         public async Task<LoginResultModel> Login(LoginModel credential)
@@ -358,7 +397,9 @@ namespace GdeWebDB.Services
                         FirstName = u.FIRSTNAME,
                         LastName = u.LASTNAME,
                         Email = u.EMAIL ?? String.Empty,
-                        UserDataJson = u.USERDATAJSON
+                        UserDataJson = u.USERDATAJSON,
+                        ProfileImageUrl = u.PROFILEIMAGEURL ?? string.Empty  
+
                     })
                     .FirstOrDefaultAsync();
 

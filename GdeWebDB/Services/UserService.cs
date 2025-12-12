@@ -202,7 +202,11 @@ namespace GdeWebDB.Services
             {
                 var dupe = await _db.T_USER.AnyAsync(x => x.EMAIL == p.Email);
                 if (dupe)
-                    return new ResultModel { Success = false, ErrorMessage = "The provided email address already exists!" };
+                    return new ResultModel
+                    {
+                        Success = false,
+                        ErrorMessage = "The provided email address already exists!"
+                    };
 
                 var now = DateTime.UtcNow;
 
@@ -213,7 +217,9 @@ namespace GdeWebDB.Services
                     FIRSTNAME = p.FirstName,
                     LASTNAME = p.LastName,
                     EMAIL = p.Email,
-                    USERDATAJSON = (p.UserData == null) ? "" : JsonConvert.SerializeObject(p.UserData, Formatting.Indented),
+                    USERDATAJSON = (p.UserData == null)
+                        ? ""
+                        : JsonConvert.SerializeObject(p.UserData, Formatting.Indented),
                     ACTIVE = p.Active,
                     MODIFICATIONDATE = now
                 };
@@ -221,17 +227,37 @@ namespace GdeWebDB.Services
                 _db.T_USER.Add(entity);
                 await _db.SaveChangesAsync(); // itt lesz USERID
 
-                var rolePairs = p.Roles.DistinctBy(d => new { d.Id, d.UserId }).ToList();
-                foreach (var r in rolePairs)
+                const int defaultRoleId = 2;
+
+                // ha a UI nem adott szerepet, automatikusan kapjon "User" szerepet
+                var rolePairs = (p.Roles ?? new List<RoleModel>())
+                    .DistinctBy(d => new { d.Id, d.UserId })
+                    .ToList();
+
+                if (!rolePairs.Any())
                 {
                     _db.K_USER_ROLES.Add(new UserRole
                     {
                         USERID = entity.USERID,
-                        ROLEID = r.Id,
+                        ROLEID = defaultRoleId,
                         CREATOR = p.Modifier,
                         CREATINGDATE = now
                     });
                 }
+                else
+                {
+                    foreach (var r in rolePairs)
+                    {
+                        _db.K_USER_ROLES.Add(new UserRole
+                        {
+                            USERID = entity.USERID,
+                            ROLEID = r.Id,
+                            CREATOR = p.Modifier,
+                            CREATINGDATE = now
+                        });
+                    }
+                }
+
                 await _db.SaveChangesAsync();
 
                 return new ResultModel { Success = true };
@@ -242,6 +268,7 @@ namespace GdeWebDB.Services
                 return ResultTypes.UnexpectedError;
             }
         }
+
 
         public async Task<ResultModel> ModifyUser(UserModel p)
         {

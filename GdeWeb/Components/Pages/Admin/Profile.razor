@@ -84,11 +84,12 @@
             <MudPaper Class="@(MainLayout.isMobile ? "card-max" : "card-max-desktop")" Style="text-align: center; height: 100%; align-content: center;" Elevation="0">
 
                 <MudButton HtmlTag="label" Class="profile-image ml-auto mr-auto mb-3 mt-5" Variant="Variant.Outlined" Color="Color.Primary" for="fileInput" FullWidth="false">
-                    <MudImage Src="img/profile.png" Alt="Profile" Height="80" Width="80" Style="border-radius: 100%; object-fit: cover;" />
+                    <MudImage Src="@GetProfileImage()" Alt="Profile" Height="80" Width="80" Style="border-radius: 100%; object-fit: cover;" />
+
                 </MudButton>
 
                 <MudText Align="Align.Center" Typo="Typo.body2" style="font-size: 1.0rem; font-weight: bold;" Color="Color.Secondary">
-                    Admin
+                    @GetMainRoleText()
                 </MudText>
 
                 <MudForm Model="@userModel" @ref="userForm" @bind-Errors="@userErrors" Style="display: grid;" Class="mt-1">
@@ -185,6 +186,32 @@
     private MudForm userForm = new MudForm();
     private bool required { get; set; } = false;
     private InputType inputPassordType { get; set; } = InputType.Password;
+
+    private string GetProfileImage()
+    {
+        if (!string.IsNullOrWhiteSpace(MainLayout.loggedUser.ProfileImageUrl))
+            return MainLayout.loggedUser.ProfileImageUrl;
+
+        return "img/profile.png";
+    }
+
+    private string GetMainRoleText()
+    {
+        // ha valamiért még nincs MainLayout vagy Roles, ne dobjon hibát
+        if (MainLayout?.loggedUser?.Roles == null || !MainLayout.loggedUser.Roles.Any())
+            return "User";
+
+        // ha van Admin szerepe, azt írjuk ki
+        if (MainLayout.loggedUser.Roles.Any(r => r.Name == "Admin"))
+            return "Admin";
+
+        // ha van sima User szerepe, azt
+        if (MainLayout.loggedUser.Roles.Any(r => r.Name == "User"))
+            return "User";
+
+        // egyébként az első szerep neve (ha később lesznek más típusúak)
+        return MainLayout.loggedUser.Roles.First().Name;
+    }
 
     /// <summary>
     /// PAGE LOAD
