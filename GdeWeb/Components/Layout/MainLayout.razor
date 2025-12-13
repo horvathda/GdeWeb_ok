@@ -189,15 +189,52 @@
 
     // HOME PAGE
     private bool homePage = true;
+    private bool _profileImageChecked = false;
+
 
     private string GetProfileImage()
     {
+        // 1) Ha már van URL, azt használjuk
         if (!string.IsNullOrWhiteSpace(loggedUser.ProfileImageUrl))
             return loggedUser.ProfileImageUrl;
 
+        // 2) Ha még nem próbáltunk újra lekérdezni, akkor most elindítjuk
+        if (!_profileImageChecked)
+        {
+            _profileImageChecked = true;
+            _ = EnsureProfileImageAsync();   // fire-and-forget, nem blokkol
+        }
+
+        // 3) Amíg nincs kép, marad a default ikon
         return "img/profile.png";
     }
+    private async Task EnsureProfileImageAsync()
+    {
+        try
+        {
+            var auth = (CustomAuthentication)authenticationStateProvider;
 
+            var freshUser = await auth.GetAuthenticatedUserAsync();
+
+            if (freshUser != null && freshUser.Id > 0 &&
+                !string.IsNullOrWhiteSpace(freshUser.ProfileImageUrl))
+            {
+                // csak a képet frissítjük (megmaradnak a már betöltött adatok is)
+                loggedUser.ProfileImageUrl = freshUser.ProfileImageUrl;
+
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (Exception ex)
+        {
+            // hiba esetén max. egy snackbar, de nem dől össze semmi
+            snackbarService?.ShowSnackbar(
+                Severity.Error,
+                $"Profilkép frissítés hiba: {ex.Message}",
+                pageWidth
+            );
+        }
+    }
     // THEME
     public MudTheme lightTheme = new MudTheme()
     {
