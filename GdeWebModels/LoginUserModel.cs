@@ -33,8 +33,19 @@ namespace GdeWebModels
         [SwaggerSchema("Művelet sikeressége")]
         public ResultModel Result { get; set; } = new ResultModel();
 
-        [SwaggerSchema("Felhasználó profilképének URL-je]")]
-        public string ProfileImageUrl { get; set; } = string.Empty;
+        [SwaggerSchema("Felhasználó profilképének URL-je")]
+        public string ProfileImageUrl
+        {
+            get => UserData?.ProfileImageUrl ?? string.Empty;
+            set
+            {
+                if (UserData == null)
+                    UserData = new UserDataModel();
+
+                UserData.ProfileImageUrl = value ?? string.Empty;
+            }
+        }
+
 
 
         [SwaggerSchema("Felhasználó személyes adatainak json string formátuma")]

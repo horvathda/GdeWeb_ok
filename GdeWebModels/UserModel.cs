@@ -40,6 +40,10 @@ namespace GdeWebModels
         [SwaggerSchema("Felhasználó szerepköreinek listája")]
         public List<RoleModel> Roles { get; set; } = new List<RoleModel> { new RoleModel() };
 
+        [SwaggerSchema("Felhasználó profilképének URL-je")]
+        public string ProfileImageUrl { get; set; } = string.Empty;
+
+
         [SwaggerSchema("Művelet sikeressége")]
         public ResultModel Result { get; set; } = new ResultModel() { Success = true, ErrorMessage = "" };
 

@@ -1,6 +1,7 @@
 ﻿using GdeWebDB.Entities;
 using GdeWebDB.Interfaces;
 using GdeWebDB.Utilities;
+using Newtonsoft.Json;
 using GdeWebModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -43,11 +44,15 @@ namespace GdeWebDB.Services
 
                 var user = await _db.T_USER.FirstOrDefaultAsync(u => u.EMAIL == email);
 
-                const int defaultRoleId = 2;   // alapértelmezett "User" szerep
-
                 if (user == null)
                 {
-                    // ÚJ USER – itt már elmentjük a Google profilképet is
+                    // 🆕 JSON alapú UserData
+                    var userData = new UserDataModel();
+                    if (!string.IsNullOrWhiteSpace(picture))
+                    {
+                        userData.ProfileImageUrl = picture;
+                    }
+
                     user = new User
                     {
                         EMAIL = email,
@@ -55,19 +60,20 @@ namespace GdeWebDB.Services
                         LASTNAME = lastName,
                         ACTIVE = true,
                         GUID = Guid.NewGuid(),
-                        PROFILEIMAGEURL = string.IsNullOrWhiteSpace(picture) ? null : picture,
+                        USERDATAJSON = JsonConvert.SerializeObject(userData),
                         MODIFICATIONDATE = DateTime.UtcNow
                     };
 
                     _db.T_USER.Add(user);
                     await _db.SaveChangesAsync();
 
-                    // Alapértelmezett szerep: USER (ROLEID = 2)
+                    const int defaultRoleId = 2;
+
                     _db.K_USER_ROLES.Add(new UserRole
                     {
                         USERID = user.USERID,
                         ROLEID = defaultRoleId,
-                        CREATOR = user.USERID,          // vagy 0, ha jobban tetszik
+                        CREATOR = user.USERID,
                         CREATINGDATE = DateTime.UtcNow
                     });
 
@@ -75,22 +81,31 @@ namespace GdeWebDB.Services
                 }
                 else
                 {
-                    // LÉTEZŐ USER FRISSÍTÉSE
                     user.FIRSTNAME = firstName;
                     user.LASTNAME = lastName;
                     user.ACTIVE = true;
                     user.MODIFICATIONDATE = DateTime.UtcNow;
 
-                    // Ha a Google most is adott képet, frissítjük
+                    // 🆕 meglévő JSON beolvasása, frissítése
+                    var userData = string.IsNullOrWhiteSpace(user.USERDATAJSON)
+                        ? new UserDataModel()
+                        : JsonConvert.DeserializeObject<UserDataModel>(user.USERDATAJSON) ?? new UserDataModel();
+
                     if (!string.IsNullOrWhiteSpace(picture))
-                        user.PROFILEIMAGEURL = picture;
+                    {
+                        userData.ProfileImageUrl = picture;
+                    }
+
+                    user.USERDATAJSON = JsonConvert.SerializeObject(userData, Formatting.Indented);
 
                     await _db.SaveChangesAsync();
 
-                    // Ha valamiért még nincs szerepe, itt is adjunk neki egyet
+                    // ha még sincs szerepe, adjunk neki (defaultRoleId = 2)
                     bool hasAnyRole = await _db.K_USER_ROLES.AnyAsync(r => r.USERID == user.USERID);
                     if (!hasAnyRole)
                     {
+                        const int defaultRoleId = 2;
+
                         _db.K_USER_ROLES.Add(new UserRole
                         {
                             USERID = user.USERID,
@@ -398,7 +413,6 @@ namespace GdeWebDB.Services
                         LastName = u.LASTNAME,
                         Email = u.EMAIL ?? String.Empty,
                         UserDataJson = u.USERDATAJSON,
-                        ProfileImageUrl = u.PROFILEIMAGEURL ?? string.Empty  
 
                     })
                     .FirstOrDefaultAsync();

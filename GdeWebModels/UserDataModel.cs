@@ -22,5 +22,8 @@ namespace GdeWebModels
 
         [SwaggerSchema("Utolsó belépés dátuma")]
         public DateTime LastLoginDate { get; set; } = DateTime.Now;
+
+        [SwaggerSchema("Felhasználó profilképének URL-je")]
+        public string ProfileImageUrl { get; set; } = string.Empty;
     }
 }

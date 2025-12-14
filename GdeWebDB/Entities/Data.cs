@@ -18,8 +18,6 @@ namespace GdeWebDB.Entities
         public string USERDATAJSON { get; set; } = "";
         public DateTime MODIFICATIONDATE { get; set; }
 
-        public string? PROFILEIMAGEURL { get; set; }
-
 
         public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
         public ICollection<AuthToken> Tokens { get; set; } = new List<AuthToken>();

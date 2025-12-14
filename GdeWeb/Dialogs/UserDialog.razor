@@ -23,7 +23,11 @@
         {
             <div class="d-flex flex-column justify-center mt-5">
                 <MudButton HtmlTag="label" Class="profile-image ml-auto mr-auto mb-3" Variant="Variant.Outlined" Color="Color.Primary" for="fileInput" FullWidth="false">
-                    <MudImage Src="img/profile.png" Alt="Profile" Height="80" Width="80" Style="border-radius: 100%; object-fit: cover;" />
+                    <MudImage Src="@GetProfileImage()"
+                              Alt="Profile"
+                              Height="80"
+                              Width="80"
+                              Style="border-radius: 100%; object-fit: cover;" />
                 </MudButton>
             </div>
 
@@ -146,6 +150,19 @@
 
     [Parameter]
     public RoleListModel RoleList { get; set; }
+
+    private string GetProfileImage()
+    {
+        // ha van UserData és benne nem üres a ProfileImageUrl, azt mutatjuk
+        var url = ModifyUser?.UserData?.ProfileImageUrl;
+
+        if (!string.IsNullOrWhiteSpace(url))
+            return url;
+
+        // különben a default placeholder kép
+        return "img/profile.png";
+    }
+
 
 
     public bool dialogLoaded = false;
